@@ -29,9 +29,6 @@ class AutofillAuthActivity : FlutterFragmentActivity() {
         window.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
         window.setDimAmount(0.32f)
         window.addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
-        if (intent.getStringExtra(AutofillContract.EXTRA_MODE) != AutofillContract.MODE_SAVE) {
-            window.addFlags(WindowManager.LayoutParams.FLAG_ALT_FOCUSABLE_IM)
-        }
         window.setGravity(Gravity.CENTER)
         window.setLayout(
             WindowManager.LayoutParams.MATCH_PARENT,

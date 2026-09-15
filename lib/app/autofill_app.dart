@@ -43,26 +43,45 @@ class AutofillApp extends StatelessWidget {
         ),
         home: request.isSaveRequest
             ? _AutofillSaveFrame(child: _AutofillRouter(request: request))
-            : Stack(
-                fit: StackFit.expand,
-                children: [
-                  GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTap: NativeAutofillAuth.cancel,
-                    child: const SizedBox.expand(),
-                  ),
-                  Center(
-                    child: FractionallySizedBox(
-                      widthFactor: 0.92,
-                      heightFactor: 0.64,
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(24),
-                        child: _AutofillRouter(request: request),
-                      ),
-                    ),
-                  ),
-                ],
+            : _AutofillPickerFrame(request: request),
+      ),
+    );
+  }
+}
+
+class _AutofillPickerFrame extends StatelessWidget {
+  const _AutofillPickerFrame({required this.request});
+
+  final NativeAutofillRequest request;
+
+  @override
+  Widget build(BuildContext context) {
+    final keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
+    return Padding(
+      padding: EdgeInsets.only(bottom: keyboardInset),
+      child: MediaQuery.removeViewInsets(
+        context: context,
+        removeBottom: true,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: NativeAutofillAuth.cancel,
+              child: const SizedBox.expand(),
+            ),
+            Center(
+              child: FractionallySizedBox(
+                widthFactor: 0.92,
+                heightFactor: keyboardInset > 0 ? 0.9 : 0.64,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(24),
+                  child: _AutofillRouter(request: request),
+                ),
               ),
+            ),
+          ],
+        ),
       ),
     );
   }
