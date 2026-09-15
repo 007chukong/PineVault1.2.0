@@ -50,6 +50,7 @@ class _VaultHomeScreenState extends State<VaultHomeScreen>
   bool _autofillEnabled = false;
   bool _autofillBackgroundAllowed = false;
   bool _autofillBusy = false;
+  bool _pendingSaveRefreshCheck = true;
 
   @override
   void initState() {
@@ -66,12 +67,17 @@ class _VaultHomeScreenState extends State<VaultHomeScreen>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) _refreshAutofillStatus();
+    if (state == AppLifecycleState.resumed) {
+      _pendingSaveRefreshCheck = true;
+      _refreshAutofillStatus();
+      _schedulePendingSaveRefresh(context.read<VaultViewModel>());
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final viewModel = context.watch<VaultViewModel>();
+    _schedulePendingSaveRefresh(viewModel);
     final isWideLayout =
         MediaQuery.sizeOf(context).width >= _wideLayoutMinWidth;
     _scheduleAutomaticBackupCheck(viewModel);
@@ -365,6 +371,23 @@ class _VaultHomeScreenState extends State<VaultHomeScreen>
               label: const Text('新建'),
             ),
     );
+  }
+
+  void _schedulePendingSaveRefresh(VaultViewModel viewModel) {
+    if (!_pendingSaveRefreshCheck ||
+        viewModel.state != VaultAppState.unlocked) {
+      return;
+    }
+    _pendingSaveRefreshCheck = false;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted || !await NativeAutofillService.hasPendingSaveRefresh()) {
+        return;
+      }
+      final refreshed = await viewModel.reloadAfterAutofillSave();
+      if (refreshed) {
+        await NativeAutofillService.clearPendingSaveRefresh();
+      }
+    });
   }
 
   void _scheduleAutomaticBackupCheck(VaultViewModel viewModel) {

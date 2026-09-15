@@ -244,4 +244,6 @@ internal object AutofillContract {
     const val EXTRA_SAVE_USERNAME = "pinevault.save_username"
     const val EXTRA_SAVE_PASSWORD = "pinevault.save_password"
     const val EXTRA_SAVE_URL = "pinevault.save_url"
+    const val STATE_PREFERENCES = "pinevault.autofill_state"
+    const val PENDING_SAVE_REFRESH = "pending_save_refresh"
 }

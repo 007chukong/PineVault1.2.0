@@ -82,6 +82,13 @@ class AutofillAuthActivity : FlutterFragmentActivity() {
                 )
                 "complete" -> complete(call, result)
                 "completeSave" -> {
+                    getSharedPreferences(
+                        AutofillContract.STATE_PREFERENCES,
+                        MODE_PRIVATE,
+                    ).edit().putBoolean(
+                        AutofillContract.PENDING_SAVE_REFRESH,
+                        true,
+                    ).commit()
                     setResult(RESULT_OK)
                     finish()
                     result.success(true)

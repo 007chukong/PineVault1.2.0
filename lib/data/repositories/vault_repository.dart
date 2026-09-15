@@ -239,6 +239,23 @@ class VaultRepository {
     );
   }
 
+  Future<void> reloadUnlocked() async {
+    final sessionVersion = _sessionVersion;
+    final key = _key;
+    final currentVault = _vault;
+    if (key == null || currentVault == null) {
+      throw StateError('Vault is locked.');
+    }
+    final envelope = _codec.decodeEnvelope(await _fileService.read());
+    if (envelope.vaultId != currentVault.id) {
+      throw const FormatException('本地密码库已更换');
+    }
+    final vault = _cryptoService.decryptVault(envelope: envelope, key: key);
+    if (sessionVersion != _sessionVersion || !identical(_key, key)) return;
+    _vault = vault;
+    _envelope = envelope;
+  }
+
   Uint8List exportDeviceUnlockKey(String masterPassword) {
     final envelope = _envelope;
     final key = _key;

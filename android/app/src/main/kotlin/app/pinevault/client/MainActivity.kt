@@ -18,6 +18,19 @@ class MainActivity : FlutterFragmentActivity() {
         ).setMethodCallHandler { call, result ->
             val manager = getSystemService(AutofillManager::class.java)
             when (call.method) {
+                "hasPendingSaveRefresh" -> result.success(
+                    getSharedPreferences(
+                        AutofillContract.STATE_PREFERENCES,
+                        MODE_PRIVATE,
+                    ).getBoolean(AutofillContract.PENDING_SAVE_REFRESH, false),
+                )
+                "clearPendingSaveRefresh" -> {
+                    getSharedPreferences(
+                        AutofillContract.STATE_PREFERENCES,
+                        MODE_PRIVATE,
+                    ).edit().remove(AutofillContract.PENDING_SAVE_REFRESH).apply()
+                    result.success(true)
+                }
                 "isEnabled" -> result.success(manager?.hasEnabledAutofillServices() == true)
                 "isBackgroundAllowed" -> {
                     val powerManager = getSystemService(PowerManager::class.java)

@@ -9,6 +9,16 @@ class NativeAutofillService {
   static bool get isSupported =>
       !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
 
+  static Future<bool> hasPendingSaveRefresh() async {
+    if (!isSupported) return false;
+    return await _channel.invokeMethod<bool>('hasPendingSaveRefresh') ?? false;
+  }
+
+  static Future<void> clearPendingSaveRefresh() async {
+    if (!isSupported) return;
+    await _channel.invokeMethod<void>('clearPendingSaveRefresh');
+  }
+
   static Future<bool> isEnabled() async {
     if (!isSupported) return false;
     return await _channel.invokeMethod<bool>('isEnabled') ?? false;

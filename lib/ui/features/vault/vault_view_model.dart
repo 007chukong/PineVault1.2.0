@@ -243,6 +243,20 @@ class VaultViewModel extends ChangeNotifier {
     }
   }
 
+  Future<bool> reloadAfterAutofillSave() async {
+    if (_state != VaultAppState.unlocked) return false;
+    try {
+      await _repository.reloadUnlocked();
+      notifyListeners();
+      _scheduleSync('自动填充保存后同步');
+      return true;
+    } catch (error) {
+      _errorMessage = _readableError(error);
+      notifyListeners();
+      return false;
+    }
+  }
+
   Future<bool> enableDeviceUnlock(String masterPassword) async {
     final vaultId = _repository.currentVaultId;
     if (vaultId == null || _deviceUnlockBusy) return false;
@@ -742,6 +756,7 @@ class VaultViewModel extends ChangeNotifier {
     String trigger, {
     Duration delay = const Duration(seconds: 2),
   }) {
+    if (!_enableVaultSync) return;
     _debouncedSyncTimer?.cancel();
     _debouncedSyncTimer = Timer(delay, () {
       unawaited(_performSync(trigger: trigger, quietIfUnconfigured: true));
