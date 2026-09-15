@@ -28,10 +28,10 @@ class AutofillAuthActivity : FlutterFragmentActivity() {
         super.onCreate(savedInstanceState)
         window.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
         window.setDimAmount(0.32f)
-        window.addFlags(
-            WindowManager.LayoutParams.FLAG_DIM_BEHIND or
-                WindowManager.LayoutParams.FLAG_ALT_FOCUSABLE_IM,
-        )
+        window.addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
+        if (intent.getStringExtra(AutofillContract.EXTRA_MODE) != AutofillContract.MODE_SAVE) {
+            window.addFlags(WindowManager.LayoutParams.FLAG_ALT_FOCUSABLE_IM)
+        }
         window.setGravity(Gravity.CENTER)
         window.setLayout(
             WindowManager.LayoutParams.MATCH_PARENT,
@@ -57,15 +57,35 @@ class AutofillAuthActivity : FlutterFragmentActivity() {
             when (call.method) {
                 "request" -> result.success(
                     mapOf(
+                        "mode" to intent.getStringExtra(
+                            AutofillContract.EXTRA_MODE,
+                        ).orEmpty(),
                         "packageNames" to intent.getStringArrayListExtra(
                             AutofillContract.EXTRA_PACKAGE_NAMES,
                         ).orEmpty(),
                         "webDomains" to intent.getStringArrayListExtra(
                             AutofillContract.EXTRA_WEB_DOMAINS,
                         ).orEmpty(),
+                        "saveTitle" to intent.getStringExtra(
+                            AutofillContract.EXTRA_SAVE_TITLE,
+                        ).orEmpty(),
+                        "saveUsername" to intent.getStringExtra(
+                            AutofillContract.EXTRA_SAVE_USERNAME,
+                        ).orEmpty(),
+                        "savePassword" to intent.getStringExtra(
+                            AutofillContract.EXTRA_SAVE_PASSWORD,
+                        ).orEmpty(),
+                        "saveUrl" to intent.getStringExtra(
+                            AutofillContract.EXTRA_SAVE_URL,
+                        ).orEmpty(),
                     ),
                 )
                 "complete" -> complete(call, result)
+                "completeSave" -> {
+                    setResult(RESULT_OK)
+                    finish()
+                    result.success(true)
+                }
                 "cancel" -> {
                     setResult(RESULT_CANCELED)
                     finish()

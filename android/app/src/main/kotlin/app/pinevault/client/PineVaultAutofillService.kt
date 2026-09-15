@@ -11,6 +11,7 @@ import android.service.autofill.FillCallback
 import android.service.autofill.FillRequest
 import android.service.autofill.FillResponse
 import android.service.autofill.SaveCallback
+import android.service.autofill.SaveInfo
 import android.service.autofill.SaveRequest
 import android.text.InputType
 import android.util.Log
@@ -82,13 +83,60 @@ class PineVaultAutofillService : AutofillService() {
         @Suppress("DEPRECATION")
         val response = FillResponse.Builder()
             .addDataset(dataset)
+            .setSaveInfo(
+                SaveInfo.Builder(
+                    SaveInfo.SAVE_DATA_TYPE_USERNAME or SaveInfo.SAVE_DATA_TYPE_PASSWORD,
+                    fields.passwordIds.toTypedArray(),
+                ).apply {
+                    if (fields.usernameIds.isNotEmpty()) {
+                        setOptionalIds(fields.usernameIds.toTypedArray())
+                    }
+                }.build(),
+            )
             .build()
         callback.onSuccess(response)
         Log.i(TAG, "request=${request.id} returned authenticated response")
     }
 
     override fun onSaveRequest(request: SaveRequest, callback: SaveCallback) {
-        callback.onSuccess()
+        val structure = request.fillContexts.lastOrNull()?.structure
+        if (structure == null) {
+            callback.onSuccess()
+            return
+        }
+        val fields = AutofillStructureParser.parse(structure)
+        val password = fields.passwordIds.asSequence()
+            .mapNotNull(fields.values::get)
+            .firstOrNull { it.isNotBlank() }
+            .orEmpty()
+        if (password.isBlank()) {
+            callback.onSuccess()
+            return
+        }
+        val username = fields.usernameIds.asSequence()
+            .mapNotNull(fields.values::get)
+            .firstOrNull { it.isNotBlank() }
+            .orEmpty()
+        val domain = fields.webDomains.firstOrNull().orEmpty()
+        val saveIntent = Intent(this, AutofillAuthActivity::class.java).apply {
+            putExtra(AutofillContract.EXTRA_MODE, AutofillContract.MODE_SAVE)
+            putExtra(AutofillContract.EXTRA_SAVE_TITLE, domain.ifBlank { "新登录信息" })
+            putExtra(AutofillContract.EXTRA_SAVE_USERNAME, username)
+            putExtra(AutofillContract.EXTRA_SAVE_PASSWORD, password)
+            putExtra(AutofillContract.EXTRA_SAVE_URL, domain)
+        }
+        val pendingIntent = PendingIntent.getActivity(
+            this,
+            System.currentTimeMillis().toInt(),
+            saveIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    PendingIntent.FLAG_MUTABLE
+                } else {
+                    0
+                },
+        )
+        callback.onSuccess(pendingIntent.intentSender)
     }
 
     private fun lockedPresentation(): RemoteViews =
@@ -106,6 +154,7 @@ private data class ParsedAutofillFields(
     val usernameIds: List<AutofillId>,
     val passwordIds: List<AutofillId>,
     val webDomains: Set<String>,
+    val values: Map<AutofillId, String>,
 )
 
 private object AutofillStructureParser {
@@ -114,6 +163,7 @@ private object AutofillStructureParser {
         val passwords = linkedSetOf<AutofillId>()
         val candidates = linkedSetOf<AutofillId>()
         val domains = linkedSetOf<String>()
+        val values = linkedMapOf<AutofillId, String>()
         for (windowIndex in 0 until structure.windowNodeCount) {
             visit(
                 structure.getWindowNodeAt(windowIndex).rootViewNode,
@@ -121,6 +171,7 @@ private object AutofillStructureParser {
                 passwords,
                 candidates,
                 domains,
+                values,
             )
         }
         val unclassified = candidates - passwords - usernames
@@ -132,6 +183,7 @@ private object AutofillStructureParser {
             usernames.toList(),
             passwords.toList(),
             domains,
+            values,
         )
     }
 
@@ -141,11 +193,13 @@ private object AutofillStructureParser {
         passwords: MutableSet<AutofillId>,
         candidates: MutableSet<AutofillId>,
         domains: MutableSet<String>,
+        values: MutableMap<AutofillId, String>,
     ) {
         node.webDomain?.trim()?.lowercase()?.takeIf { it.isNotEmpty() }?.let(domains::add)
         val id = node.autofillId
         if (id != null && node.autofillType == View.AUTOFILL_TYPE_TEXT) {
             candidates.add(id)
+            node.autofillValue?.textValue?.toString()?.let { values[id] = it }
             val hints = node.autofillHints.orEmpty().map(String::lowercase)
             val attributes = node.htmlInfo?.attributes.orEmpty()
                 .joinToString(" ") { "${it.first}=${it.second}" }
@@ -173,7 +227,7 @@ private object AutofillStructureParser {
             if (isUsername && !isPassword) usernames.add(id)
         }
         for (index in 0 until node.childCount) {
-            visit(node.getChildAt(index), usernames, passwords, candidates, domains)
+            visit(node.getChildAt(index), usernames, passwords, candidates, domains, values)
         }
     }
 }
@@ -184,4 +238,10 @@ internal object AutofillContract {
     const val EXTRA_PASSWORD_IDS = "pinevault.password_ids"
     const val EXTRA_PACKAGE_NAMES = "pinevault.package_names"
     const val EXTRA_WEB_DOMAINS = "pinevault.web_domains"
+    const val EXTRA_MODE = "pinevault.mode"
+    const val MODE_SAVE = "save"
+    const val EXTRA_SAVE_TITLE = "pinevault.save_title"
+    const val EXTRA_SAVE_USERNAME = "pinevault.save_username"
+    const val EXTRA_SAVE_PASSWORD = "pinevault.save_password"
+    const val EXTRA_SAVE_URL = "pinevault.save_url"
 }

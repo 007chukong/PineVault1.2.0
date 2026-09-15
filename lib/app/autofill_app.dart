@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -39,25 +41,55 @@ class AutofillApp extends StatelessWidget {
           inputDecorationTheme: _autofillInputTheme(),
           useMaterial3: true,
         ),
-        home: Stack(
-          fit: StackFit.expand,
-          children: [
-            GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: NativeAutofillAuth.cancel,
-              child: const SizedBox.expand(),
-            ),
-            Center(
-              child: FractionallySizedBox(
-                widthFactor: 0.92,
-                heightFactor: 0.64,
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(24),
-                  child: _AutofillRouter(request: request),
-                ),
+        home: request.isSaveRequest
+            ? _AutofillSaveFrame(child: _AutofillRouter(request: request))
+            : Stack(
+                fit: StackFit.expand,
+                children: [
+                  GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: NativeAutofillAuth.cancel,
+                    child: const SizedBox.expand(),
+                  ),
+                  Center(
+                    child: FractionallySizedBox(
+                      widthFactor: 0.92,
+                      heightFactor: 0.64,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(24),
+                        child: _AutofillRouter(request: request),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+      ),
+    );
+  }
+}
+
+class _AutofillSaveFrame extends StatelessWidget {
+  const _AutofillSaveFrame({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      resizeToAvoidBottomInset: true,
+      body: SafeArea(
+        child: LayoutBuilder(
+          builder: (context, constraints) => Center(
+            child: SizedBox(
+              width: math.min(constraints.maxWidth - 40, 420),
+              height: math.min(constraints.maxHeight - 32, 560),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(24),
+                child: child,
               ),
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -97,9 +129,181 @@ class _AutofillRouter extends StatelessWidget {
         ),
         VaultAppState.unlocked ||
         VaultAppState.saving ||
-        VaultAppState.syncing => _AutofillPicker(request: request),
+        VaultAppState.syncing =>
+          request.isSaveRequest
+              ? _AutofillSavePrompt(request: request)
+              : _AutofillPicker(request: request),
       },
     );
+  }
+}
+
+class _AutofillSavePrompt extends StatefulWidget {
+  const _AutofillSavePrompt({required this.request});
+
+  final NativeAutofillRequest request;
+
+  @override
+  State<_AutofillSavePrompt> createState() => _AutofillSavePromptState();
+}
+
+class _AutofillSavePromptState extends State<_AutofillSavePrompt> {
+  late final TextEditingController _title;
+  late final TextEditingController _username;
+  late final TextEditingController _password;
+  late final TextEditingController _url;
+  bool _saving = false;
+  bool _obscurePassword = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _title = TextEditingController(text: widget.request.saveTitle);
+    _username = TextEditingController(text: widget.request.saveUsername);
+    _password = TextEditingController(text: widget.request.savePassword);
+    _url = TextEditingController(text: widget.request.saveUrl);
+  }
+
+  @override
+  void dispose() {
+    _title.dispose();
+    _username.dispose();
+    _password.dispose();
+    _url.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Material(
+      color: theme.colorScheme.surface,
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 8, 8),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text('保存登录信息', style: theme.textTheme.titleLarge),
+                ),
+                IconButton(
+                  tooltip: '取消',
+                  onPressed: _saving ? null : NativeAutofillAuth.cancel,
+                  icon: const Icon(Icons.close),
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1),
+          Expanded(
+            child: ListView(
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+              children: [
+                const Text('请确认以下登录信息是否保存到松匣。'),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: _title,
+                  enabled: !_saving,
+                  decoration: const InputDecoration(labelText: '名称'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _username,
+                  enabled: !_saving,
+                  decoration: const InputDecoration(labelText: '用户名'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _password,
+                  enabled: !_saving,
+                  obscureText: _obscurePassword,
+                  enableSuggestions: false,
+                  autocorrect: false,
+                  decoration: InputDecoration(
+                    labelText: '密码',
+                    suffixIcon: IconButton(
+                      onPressed: _saving
+                          ? null
+                          : () => setState(
+                              () => _obscurePassword = !_obscurePassword,
+                            ),
+                      icon: Icon(
+                        _obscurePassword
+                            ? Icons.visibility_outlined
+                            : Icons.visibility_off_outlined,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _url,
+                  enabled: !_saving,
+                  keyboardType: TextInputType.url,
+                  decoration: const InputDecoration(labelText: '网站'),
+                ),
+                if (_error case final error?) ...[
+                  const SizedBox(height: 12),
+                  Text(error, style: TextStyle(color: theme.colorScheme.error)),
+                ],
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+            child: Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: _saving ? null : NativeAutofillAuth.cancel,
+                    child: const Text('取消'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: FilledButton(
+                    onPressed: _saving ? null : _save,
+                    child: Text(_saving ? '保存中…' : '保存'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _save() async {
+    if (_title.text.trim().isEmpty || _password.text.isEmpty) {
+      setState(() => _error = '名称和密码不能为空');
+      return;
+    }
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+    final viewModel = context.read<VaultViewModel>();
+    final saved = await viewModel.saveItem(
+      title: _title.text,
+      username: _username.text,
+      password: _password.text,
+      url: _url.text,
+      notes: '',
+      favorite: false,
+    );
+    if (!mounted) return;
+    if (saved) {
+      await NativeAutofillAuth.completeSave();
+      return;
+    }
+    setState(() {
+      _saving = false;
+      _error = viewModel.errorMessage ?? '保存失败，请重试';
+    });
   }
 }
 
