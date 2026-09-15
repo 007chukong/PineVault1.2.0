@@ -23,6 +23,7 @@
 - 顶部 Toast 风格操作反馈，适配手机端和桌面端
 - 坚果云 WebDAV：手动同步、解锁后同步、内容变更同步、配置变更同步和定时同步
 - KDBX 导入和导出（密码版 KDBX 3/4）
+- Android 自动填充：识别登录字段，按应用包名或网页域名匹配条目，解锁后选择并填入账号密码
 
 ## 安全模型
 
@@ -74,6 +75,14 @@
 - iOS 使用要求用户在场验证的系统 Keychain；macOS 使用 Secure Enclave 私钥封装 `VaultKey`，加密结果保存在 App 数据目录，不访问 Keychain。
 - Windows 使用 Windows Hello 验证和 DPAPI 用户级安全存储。
 
+### Android 自动填充
+
+Android 端已提供系统 `AutofillService`。首次使用时，打开“更多 → 开启自动填充”，在 Android 系统设置中将松匣设为自动填充服务；部分系统还需要允许松匣后台运行。
+
+在登录页面触发系统自动填充后，松匣会优先显示与当前 App 包名或网页域名匹配的登录条目。选择条目并解锁密码库后，松匣会将用户名和密码填入当前页面。没有匹配项时仍可在选择窗口中搜索其他登录条目。
+
+该功能只处理包含密码字段的登录表单；如果目标 App 主动禁用 Android Autofill，或页面没有正确标注登录字段，系统可能不会触发自动填充。
+
 ## 本地数据
 
 应用支持目录下的 `PineVault/` 保存加密密码库、备份文件、同步基线和同步历史。macOS 沙盒运行时通常位于：
@@ -118,7 +127,8 @@ Android Release 签名由本地被 Git 忽略的 `android/key.properties` 和 `a
 
 ## 当前边界
 
-- 尚未实现 Android Autofill、iOS Credential Provider 和浏览器扩展。
+- iOS Credential Provider 和浏览器扩展尚未实现。
+- Android 自动填充已实现，但不同厂商系统、浏览器、原生登录页和 WebView 仍需分别进行真机兼容性验证。
 - KDBX 暂不支持密钥文件、附件和自定义字段。
 - 坚果云双设备真实同步仍需使用你自己的有效账号进行验证。
 - 设备验证解锁仍需分别在 Android 真机、带 Touch ID 的 macOS、iOS 和 Windows Hello 设备上完成人工验证。
