@@ -122,7 +122,8 @@ class PineVaultSectionLabel extends StatelessWidget {
 class PineVaultListTile extends StatelessWidget {
   const PineVaultListTile({
     super.key,
-    required this.icon,
+    this.icon,
+    this.leading,
     required this.title,
     this.subtitle,
     this.trailing,
@@ -130,9 +131,16 @@ class PineVaultListTile extends StatelessWidget {
     this.iconColor,
     this.dense = false,
     this.showChevron = false,
-  });
+  }) : assert(
+         icon != null || leading != null,
+         'PineVaultListTile 需要 icon 或 leading 至少提供一个',
+       );
 
-  final IconData icon;
+  final IconData? icon;
+
+  /// 自定义前置图标（1.2.3：酷安 APP 图标这类位图）。提供时优先于 [icon]。
+  final Widget? leading;
+
   final String title;
   final String? subtitle;
   final Widget? trailing;
@@ -149,12 +157,13 @@ class PineVaultListTile extends StatelessWidget {
       padding: EdgeInsets.fromLTRB(14, dense ? 10 : 13, 14, dense ? 10 : 13),
       child: Row(
         children: [
-          PineVaultIconBadge(
-            icon: icon,
-            color: iconColor,
-            size: dense ? 36 : 40,
-            radius: dense ? 12 : 13,
-          ),
+          leading ??
+              PineVaultIconBadge(
+                icon: icon!,
+                color: iconColor,
+                size: dense ? 36 : 40,
+                radius: dense ? 12 : 13,
+              ),
           const SizedBox(width: 14),
           Expanded(
             child: Column(
@@ -266,6 +275,33 @@ class PineVaultStatTile extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// 1.2.3：酷安 APP 图标徽章。
+///
+/// 与 [PineVaultIconBadge] 对齐同一个 40x40 的圆角图标位，区别是直接贴官方
+/// APP 图标位图（assets/coolapk_icon.png），而不是 Material 图标字体。
+class PineVaultCoolapkBadge extends StatelessWidget {
+  const PineVaultCoolapkBadge({super.key, this.size = 40, this.radius = 13});
+
+  final double size;
+  final double radius;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(radius),
+      child: Image.asset(
+        'assets/coolapk_icon.png',
+        width: size,
+        height: size,
+        fit: BoxFit.cover,
+        filterQuality: FilterQuality.high,
+        // 资源缺失时不留空白，退回等尺寸空位，布局不塌。
+        errorBuilder: (_, _, _) => SizedBox(width: size, height: size),
       ),
     );
   }

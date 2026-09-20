@@ -145,6 +145,10 @@ class _VaultList extends StatelessWidget {
           child: items.isEmpty
               ? _EmptyVault(hasQuery: viewModel.query.isNotEmpty)
               : ListView.builder(
+                  // 1.2.3：给悬浮底栏留出滚动余量，最后一行能滚到玻璃上方。
+                  padding: EdgeInsets.only(
+                    bottom: PineVaultBottomNav.reservedHeight(context),
+                  ),
                   itemCount: items.length,
                   itemBuilder: (context, index) {
                     final item = items[index];
@@ -348,7 +352,13 @@ class _BatchActionBar extends StatelessWidget {
     return SafeArea(
       top: false,
       child: Container(
-        padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
+        // 1.2.3：悬浮底栏盖在页面内容之上，多选操作栏额外让出底栏高度。
+        padding: EdgeInsets.fromLTRB(
+          12,
+          8,
+          12,
+          10 + PineVaultBottomNav.reservedHeight(context),
+        ),
         decoration: BoxDecoration(
           color: theme.colorScheme.surface,
           border: Border(

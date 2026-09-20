@@ -41,6 +41,9 @@ part 'vault_home_group_selector.dart';
 /// 开发者联系邮箱（设置页「关于」中展示，点击可发信或复制）。
 const String _developerEmail = '3153057775@qq.com';
 
+/// 1.2.3：开发者酷安主页（设置页「关于 → 酷安主页」点击直达）。
+const String _coolapkProfileUrl = 'https://www.coolapk.com/u/20634810';
+
 class VaultHomeScreen extends StatefulWidget {
   const VaultHomeScreen({super.key});
 
@@ -51,6 +54,9 @@ class VaultHomeScreen extends StatefulWidget {
 class _VaultHomeScreenState extends State<VaultHomeScreen>
     with WidgetsBindingObserver {
   static const _wideLayoutMinWidth = 900.0;
+
+  // 1.2.3：屏幕下方可用于滑动切页的区域，高度取屏幕高度的 32%。
+  static const double _bottomSwipeHeightFactor = 0.32;
 
   bool _automaticBackupChecked = false;
   bool _automaticBackupCheckScheduled = false;
@@ -93,52 +99,87 @@ class _VaultHomeScreenState extends State<VaultHomeScreen>
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: _buildHomeAppBar(viewModel),
-      body: Column(
+      body: Stack(
         children: [
-          if (viewModel.syncProgress case final progress?) ...[
-            const LinearProgressIndicator(),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-              child: Text(progress),
+          Column(
+          children: [
+            if (viewModel.syncProgress case final progress?) ...[
+              const LinearProgressIndicator(),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                child: Text(progress),
+              ),
+            ],
+            if (viewModel.webDavConflict)
+              MaterialBanner(
+                content: const Text('检测到其他设备使用了不同的 WebDAV 配置，本次同步已保留当前设备配置。'),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.push<void>(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const WebDavSettingsScreen(),
+                      ),
+                    ),
+                    child: const Text('检查配置'),
+                  ),
+                ],
+              ),
+            Expanded(
+              child: IndexedStack(
+                index: _tabIndex,
+                // 1.2.2：只有三个页面。原来第 2 项是"新建"页，
+                // 它既不是页面、又堆满了同步与设置的功能，已整体删除。
+                children: [
+                  _buildVaultTab(viewModel),
+                  _buildSyncTab(viewModel),
+                  _buildSettingsTab(viewModel),
+                ],
+              ),
             ),
           ],
-          if (viewModel.webDavConflict)
-            MaterialBanner(
-              content: const Text('检测到其他设备使用了不同的 WebDAV 配置，本次同步已保留当前设备配置。'),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.push<void>(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const WebDavSettingsScreen(),
-                    ),
-                  ),
-                  child: const Text('检查配置'),
-                ),
-              ],
-            ),
-          Expanded(
-            child: IndexedStack(
+        ),
+          // 1.2.3：悬浮底栏。不再占用 Scaffold 的 bottomNavigationBar，
+          // 而是叠加在页面内容之上，内容从玻璃底下透出来才有毛玻璃观感。
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: PineVaultBottomNav(
               index: _tabIndex,
-              // 1.2.2：只有三个页面。原来第 2 项是"新建"页，
-              // 它既不是页面、又堆满了同步与设置的功能，已整体删除。
-              children: [
-                _buildVaultTab(viewModel),
-                _buildSyncTab(viewModel),
-                _buildSettingsTab(viewModel),
-              ],
+              onChanged: (value) {
+                if (value == _tabIndex) return;
+                setState(() => _tabIndex = value);
+              },
+            ),
+          ),
+          // 1.2.3：屏幕下方任意区域横向滑动即可切换底栏三项。
+          // 手势层放在最上面、行为取 translucent：横向拖动归它，
+          // 纵向拖动仍归下层列表滚动，点击也照常落到下层控件。
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            height:
+                MediaQuery.sizeOf(context).height *
+                _bottomSwipeHeightFactor,
+            child: _BottomSwipeArea(
+              onSwipeLeft: () => _shiftTab(1),
+              onSwipeRight: () => _shiftTab(-1),
             ),
           ),
         ],
       ),
-      bottomNavigationBar: PineVaultBottomNav(
-        index: _tabIndex,
-        onChanged: (value) {
-          if (value == _tabIndex) return;
-          setState(() => _tabIndex = value);
-        },
-      ),
     );
+  }
+
+  // 1.2.3：底栏切换的统一入口（点底栏、屏幕下方滑动都走这里）。
+  void _shiftTab(int delta) {
+    final next = (_tabIndex + delta)
+        .clamp(0, PineVaultBottomNav.entryCount - 1)
+        .toInt();
+    if (next == _tabIndex) return;
+    setState(() => _tabIndex = next);
   }
 
   // 1.2.2：不再需要 isWideLayout —— 宽屏专属的"新建"按钮已移除，
@@ -313,7 +354,8 @@ class _VaultHomeScreenState extends State<VaultHomeScreen>
   }
 
   Widget _navigationTile({
-    required IconData icon,
+    IconData? icon,
+    Widget? leading,
     required String title,
     String? subtitle,
     required VoidCallback? onTap,
@@ -326,6 +368,7 @@ class _VaultHomeScreenState extends State<VaultHomeScreen>
       onTap: onTap,
       child: PineVaultListTile(
         icon: icon,
+        leading: leading,
         title: title,
         subtitle: subtitle,
         iconColor: iconColor,
@@ -407,12 +450,34 @@ class _VaultHomeScreenState extends State<VaultHomeScreen>
     }
   }
 
+  /// 1.2.3：打开开发者酷安主页；系统没有能处理链接的应用时降级为复制地址。
+  Future<void> _openCoolapk(BuildContext context) async {
+    final uri = Uri.parse(_coolapkProfileUrl);
+    var opened = false;
+    try {
+      opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } on Exception {
+      opened = false;
+    }
+    if (opened || !context.mounted) return;
+    await Clipboard.setData(const ClipboardData(text: _coolapkProfileUrl));
+    if (context.mounted) {
+      showAppMessage(context, '未找到可打开链接的应用，酷安主页地址已复制：$_coolapkProfileUrl');
+    }
+  }
+
   Widget _buildSyncTab(VaultViewModel viewModel) {
     final theme = Theme.of(context);
     final progress = viewModel.syncProgress;
     final message = viewModel.syncMessage;
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
+      // 1.2.3：悬浮底栏盖在内容之上，列表按底栏实际高度留出底部余量。
+      padding: EdgeInsets.fromLTRB(
+        16,
+        4,
+        16,
+        32 + PineVaultBottomNav.reservedHeight(context),
+      ),
       children: [
         PineVaultSurface(
           child: Column(
@@ -487,7 +552,13 @@ class _VaultHomeScreenState extends State<VaultHomeScreen>
   Widget _buildSettingsTab(VaultViewModel viewModel) {
     final theme = Theme.of(context);
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
+      // 1.2.3：悬浮底栏盖在内容之上，列表按底栏实际高度留出底部余量。
+      padding: EdgeInsets.fromLTRB(
+        16,
+        4,
+        16,
+        32 + PineVaultBottomNav.reservedHeight(context),
+      ),
       children: [
         const PineVaultSectionLabel('解锁与安全'),
         _switchTile(
@@ -586,7 +657,7 @@ class _VaultHomeScreenState extends State<VaultHomeScreen>
           child: PineVaultListTile(
             icon: Icons.info_outline_rounded,
             title: '松匣 PineVault',
-            subtitle: '版本 1.2.2',
+            subtitle: '版本 1.2.3',
           ),
         ),
         _navigationTile(
@@ -594,6 +665,13 @@ class _VaultHomeScreenState extends State<VaultHomeScreen>
           title: '联系开发者',
           subtitle: _developerEmail,
           onTap: () => _contactDeveloper(context),
+        ),
+        _navigationTile(
+          // 1.2.3：前置酷安 APP 图标，点击直达酷安主页。
+          title: '酷安主页',
+          subtitle: 'www.coolapk.com/u/20634810',
+          leading: const PineVaultCoolapkBadge(),
+          onTap: () => _openCoolapk(context),
         ),
       ],
     );
@@ -794,5 +872,39 @@ Future<void> _handleMenu(BuildContext context, _VaultMenuAction action) async {
       viewModel.setSortOrder(VaultSortOrder.time);
     case _VaultMenuAction.sortByName:
       viewModel.setSortOrder(VaultSortOrder.name);
+  }
+}
+
+/// 1.2.3：屏幕下方的滑动切页热区。
+///
+/// 只接管横向拖动（向左 → 看下一项，向右 → 回上一项）。纵向拖动与点击
+/// 一律放行给下层控件——列表照常滚动、底栏按钮照常可点，所以行为取
+/// [HitTestBehavior.translucent]，而不是把整块区域吞掉的 opaque。
+class _BottomSwipeArea extends StatelessWidget {
+  const _BottomSwipeArea({
+    required this.onSwipeLeft,
+    required this.onSwipeRight,
+  });
+
+  final VoidCallback onSwipeLeft;
+  final VoidCallback onSwipeRight;
+
+  /// 触发切页所需的最小水平甩动速度（逻辑像素 / 秒）。
+  /// 取个偏高的值，避免手滑时的抖动被误判成切页。
+  static const double _minVelocity = 120;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onHorizontalDragEnd: (details) {
+        final velocity = details.primaryVelocity ?? 0;
+        if (velocity <= -_minVelocity) {
+          onSwipeLeft();
+        } else if (velocity >= _minVelocity) {
+          onSwipeRight();
+        }
+      },
+    );
   }
 }
