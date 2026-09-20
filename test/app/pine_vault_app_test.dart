@@ -45,14 +45,17 @@ void main() {
     expect(find.text('选择一个条目，或创建新密码'), findsOneWidget);
     final addButton = find.byKey(const Key('add-item'));
     expect(addButton, findsOneWidget);
+    // 1.2.2：新建入口从 AppBar（仅宽屏可见）挪到密码库页内的主按钮，
+    // 因此这里断言它「不在 AppBar 里、也不是 FAB」。
     expect(
       find.ancestor(of: addButton, matching: find.byType(AppBar)),
-      findsOneWidget,
+      findsNothing,
     );
     expect(
       find.ancestor(of: addButton, matching: find.byType(FloatingActionButton)),
       findsNothing,
     );
+    expect(find.widgetWithText(FilledButton, '新建密码'), findsOneWidget);
     await tester.tap(find.text('桌面测试条目'));
     await tester.pump();
 

@@ -43,8 +43,34 @@ class _VaultList extends StatelessWidget {
     ];
     return Column(
       children: [
+        // 1.2.2：新建入口从底栏 / AppBar（仅宽屏可见）挪到这里，
+        // 成为密码库页所有屏幕尺寸都可见的主操作。
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+          child: SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              key: const Key('add-item'),
+              onPressed: viewModel.busy
+                  ? null
+                  : () => _openEditor(context, viewModel),
+              icon: const Icon(Icons.add_rounded, size: 22),
+              label: const Text('新建密码'),
+              style: FilledButton.styleFrom(
+                minimumSize: const Size.fromHeight(48),
+                textStyle: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                ),
+                shape: const RoundedRectangleBorder(
+                  borderRadius: PineVaultRadii.card,
+                ),
+              ),
+            ),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
           child: TextField(
             key: const Key('vault-search'),
             onChanged: viewModel.setQuery,
@@ -66,9 +92,8 @@ class _VaultList extends StatelessWidget {
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(16),
                 borderSide: BorderSide(
-                  color: Theme.of(
-                    context,
-                  ).colorScheme.outlineVariant.withValues(alpha: 0.55),
+                  // 1.2.2：去掉 alpha 稀释，用实色描边。
+                  color: Theme.of(context).colorScheme.outlineVariant,
                 ),
               ),
               focusedBorder: OutlineInputBorder(

@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
@@ -36,6 +37,9 @@ part 'vault_home_item_actions.dart';
 part 'vault_home_item_viewer.dart';
 part 'vault_home_item_editor.dart';
 part 'vault_home_group_selector.dart';
+
+/// 开发者联系邮箱（设置页「关于」中展示，点击可发信或复制）。
+const String _developerEmail = '3153057775@qq.com';
 
 class VaultHomeScreen extends StatefulWidget {
   const VaultHomeScreen({super.key});
@@ -84,12 +88,11 @@ class _VaultHomeScreenState extends State<VaultHomeScreen>
   Widget build(BuildContext context) {
     final viewModel = context.watch<VaultViewModel>();
     _schedulePendingSaveRefresh(viewModel);
-    final isWideLayout =
-        MediaQuery.sizeOf(context).width >= _wideLayoutMinWidth;
+    // 1.2.2：宽屏与否已不影响 AppBar，局部变量不再需要。
     _scheduleAutomaticBackupCheck(viewModel);
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surface,
-      appBar: _buildHomeAppBar(viewModel, isWideLayout),
+      appBar: _buildHomeAppBar(viewModel),
       body: Column(
         children: [
           if (viewModel.syncProgress case final progress?) ...[
@@ -117,9 +120,10 @@ class _VaultHomeScreenState extends State<VaultHomeScreen>
           Expanded(
             child: IndexedStack(
               index: _tabIndex,
+              // 1.2.2：只有三个页面。原来第 2 项是"新建"页，
+              // 它既不是页面、又堆满了同步与设置的功能，已整体删除。
               children: [
                 _buildVaultTab(viewModel),
-                _buildCreateTab(viewModel),
                 _buildSyncTab(viewModel),
                 _buildSettingsTab(viewModel),
               ],
@@ -137,16 +141,16 @@ class _VaultHomeScreenState extends State<VaultHomeScreen>
     );
   }
 
-  PreferredSizeWidget _buildHomeAppBar(
-    VaultViewModel viewModel,
-    bool isWideLayout,
-  ) {
+  // 1.2.2：不再需要 isWideLayout —— 宽屏专属的"新建"按钮已移除，
+  // 新建入口改为密码库页内所有屏幕尺寸都可见的固定动作。
+  PreferredSizeWidget _buildHomeAppBar(VaultViewModel viewModel) {
     final scheme = Theme.of(context).colorScheme;
-    final showQuickMenu = _tabIndex == 0 || _tabIndex == 1;
+    // 1.2.2：三条杠（多选 / 展示密码 / 展示网站 / TOTP / 排序 / 锁定）
+    // 只服务于"密码库"列表，因此只在密码库页出现。
+    final showQuickMenu = _tabIndex == 0;
     final Widget title = switch (_tabIndex) {
       0 => const VaultBrand(compact: true),
-      1 => const Text('新建'),
-      2 => const Text('同步'),
+      1 => const Text('同步'),
       _ => const Text('设置'),
     };
     return AppBar(
@@ -163,15 +167,9 @@ class _VaultHomeScreenState extends State<VaultHomeScreen>
               child: CircularProgressIndicator(strokeWidth: 2),
             ),
           ),
-        if (_tabIndex == 0 && isWideLayout && !viewModel.selectionMode)
-          IconButton(
-            key: const Key('add-item'),
-            tooltip: '新建',
-            onPressed: viewModel.busy
-                ? null
-                : () => _openEditor(context, viewModel),
-            icon: const Icon(Icons.add),
-          ),
+        // 1.2.2：AppBar 上的"新建"按钮已移除。
+        // 原来它只在宽屏（>=900）出现，手机用户根本看不到新建入口；
+        // 现在"新建"作为密码库页内的固定动作，见 vault_home_list.dart 顶部按钮。
         if (showQuickMenu) _buildQuickMenuButton(viewModel),
       ],
     );
@@ -363,159 +361,50 @@ class _VaultHomeScreenState extends State<VaultHomeScreen>
     );
   }
 
-  Widget _buildCreateTab(VaultViewModel viewModel) {
-    final theme = Theme.of(context);
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
-      children: [
-        PineVaultSurface(
-          color: theme.colorScheme.primaryContainer,
-          onTap: viewModel.busy
-              ? null
-              : () => _openEditor(context, viewModel),
-          child: Row(
-            children: [
-              const PineVaultIconBadge(
-                icon: Icons.add_rounded,
-                size: 46,
-                radius: 15,
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('新建密码条目', style: theme.textTheme.titleMedium),
-                    const SizedBox(height: 2),
-                    Text(
-                      '记录账号、密码、网址与备注',
-                      style: theme.textTheme.bodySmall,
-                    ),
-                  ],
-                ),
-              ),
-              const Icon(Icons.chevron_right_rounded),
-            ],
+  /// 设置页「清理缓存」：清掉应用列表 / 图标缓存与已解码图片缓存。
+  Future<void> _clearCache(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('清理缓存？'),
+        content: const Text('将清除已安装应用列表、应用图标等临时缓存，'
+            '密码库数据不受影响。'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('取消'),
           ),
-        ),
-        const PineVaultSectionLabel('条目与整理'),
-        _navigationTile(
-          icon: Icons.checklist_rounded,
-          title: '多选操作',
-          subtitle: '批量选择、移动或删除条目',
-          onTap: viewModel.selectionMode ? null : viewModel.startSelectionMode,
-        ),
-        _navigationTile(
-          icon: Icons.folder_copy_outlined,
-          title: '分组管理',
-          subtitle: '新建、重命名与调整分组',
-          onTap: () => _showGroupManagement(context, viewModel),
-        ),
-        const PineVaultSectionLabel('数据迁移'),
-        _navigationTile(
-          icon: Icons.file_download_outlined,
-          title: '导入 KDBX',
-          subtitle: '从 KeePass 文件导入条目',
-          onTap: viewModel.busy ? null : () => _importKdbx(context, viewModel),
-        ),
-        _navigationTile(
-          icon: Icons.file_upload_outlined,
-          title: '导出 KDBX',
-          subtitle: '导出为 KeePass 兼容文件',
-          onTap: viewModel.busy ? null : () => _exportKdbx(context, viewModel),
-        ),
-        _navigationTile(
-          icon: Icons.settings_backup_restore_rounded,
-          title: '备份与恢复',
-          subtitle: '本地备份管理与恢复',
-          onTap: () => _pushScreen(const BackupScreen()),
-        ),
-        const PineVaultSectionLabel('云同步'),
-        _navigationTile(
-          icon: Icons.sync_rounded,
-          title: '立即同步',
-          subtitle: '将当前保险库同步到云端',
-          onTap: viewModel.busy ? null : () => _sync(context, viewModel),
-        ),
-        _navigationTile(
-          icon: Icons.cloud_outlined,
-          title: 'WebDAV 设置',
-          subtitle: '配置服务器地址与账号',
-          onTap: () => _pushScreen(const WebDavSettingsScreen()),
-        ),
-        _navigationTile(
-          icon: Icons.history_rounded,
-          title: '同步历史',
-          subtitle: '查看最近的同步记录',
-          onTap: () => _pushScreen(const SyncHistoryScreen()),
-        ),
-        const PineVaultSectionLabel('安全'),
-        _navigationTile(
-          icon: Icons.password_rounded,
-          title: '修改主密码',
-          subtitle: '更新解锁保险库的主密码',
-          onTap: () =>
-              _handleMenu(context, _VaultMenuAction.changeMasterPassword),
-        ),
-        _navigationTile(
-          icon: Icons.fingerprint_rounded,
-          title: '生物识别解锁',
-          subtitle: viewModel.deviceUnlockEnabled
-              ? '已开启，可用指纹或面容快速解锁'
-              : '未开启',
-          onTap: () => _handleMenu(context, _VaultMenuAction.deviceUnlock),
-        ),
-        _navigationTile(
-          icon: Icons.auto_mode_rounded,
-          title: '自动填充',
-          subtitle: _autofillEnabled ? '已开启' : '未开启',
-          onTap: () => _handleMenuAction(_VaultMenuAction.autofill),
-        ),
-        const PineVaultSectionLabel('显示与排序'),
-        _switchTile(
-          icon: Icons.visibility_outlined,
-          title: '展示密码',
-          value: viewModel.showPasswords,
-          onChanged: (value) => viewModel.setShowPasswords(value),
-        ),
-        _switchTile(
-          icon: Icons.public_outlined,
-          title: '展示网站',
-          value: viewModel.showWebsites,
-          onChanged: (value) => viewModel.setShowWebsites(value),
-        ),
-        _switchTile(
-          icon: Icons.timer_outlined,
-          title: '显示 TOTP',
-          value: viewModel.showTotp,
-          onChanged: (value) => viewModel.setShowTotp(value),
-        ),
-        _navigationTile(
-          icon: Icons.schedule_rounded,
-          title: '按时间排序',
-          subtitle: viewModel.sortOrder == VaultSortOrder.time
-              ? (viewModel.sortReversed ? '当前：倒序' : '当前：正序')
-              : null,
-          onTap: () => viewModel.setSortOrder(VaultSortOrder.time),
-        ),
-        _navigationTile(
-          icon: Icons.sort_by_alpha_rounded,
-          title: '按名称排序',
-          subtitle: viewModel.sortOrder == VaultSortOrder.name
-              ? (viewModel.sortReversed ? '当前：倒序' : '当前：正序')
-              : null,
-          onTap: () => viewModel.setSortOrder(VaultSortOrder.name),
-        ),
-        const PineVaultSectionLabel('会话'),
-        _navigationTile(
-          icon: Icons.lock_outline_rounded,
-          title: '锁定保险库',
-          subtitle: '需要重新解锁',
-          iconColor: theme.colorScheme.error,
-          onTap: viewModel.lock,
-        ),
-      ],
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('清理'),
+          ),
+        ],
+      ),
     );
+    if (confirmed != true || !context.mounted) return;
+    await InstalledAppsService.clearCache();
+    // 图标是 Image.memory 解码后的位图，缓存一并丢弃，避免仍显示旧图。
+    PaintingBinding.instance.imageCache.clear();
+    PaintingBinding.instance.imageCache.clearLiveImages();
+    if (context.mounted) {
+      showAppMessage(context, '缓存已清理');
+    }
+  }
+
+  /// 设置页「联系开发者」：优先唤起邮件应用，失败则把地址复制到剪贴板。
+  Future<void> _contactDeveloper(BuildContext context) async {
+    final uri = Uri(scheme: 'mailto', path: _developerEmail);
+    var opened = false;
+    try {
+      opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } on Exception {
+      opened = false;
+    }
+    if (opened || !context.mounted) return;
+    await Clipboard.setData(const ClipboardData(text: _developerEmail));
+    if (context.mounted) {
+      showAppMessage(context, '未找到邮件应用，邮箱已复制：$_developerEmail');
+    }
   }
 
   Widget _buildSyncTab(VaultViewModel viewModel) {
@@ -589,25 +478,8 @@ class _VaultHomeScreenState extends State<VaultHomeScreen>
           subtitle: '查看最近同步记录',
           onTap: () => _pushScreen(const SyncHistoryScreen()),
         ),
-        const PineVaultSectionLabel('本地数据'),
-        _navigationTile(
-          icon: Icons.settings_backup_restore_rounded,
-          title: '备份与恢复',
-          subtitle: '本地备份管理与恢复',
-          onTap: () => _pushScreen(const BackupScreen()),
-        ),
-        _navigationTile(
-          icon: Icons.file_download_outlined,
-          title: '导入 KDBX',
-          subtitle: '从 KeePass 文件导入条目',
-          onTap: viewModel.busy ? null : () => _importKdbx(context, viewModel),
-        ),
-        _navigationTile(
-          icon: Icons.file_upload_outlined,
-          title: '导出 KDBX',
-          subtitle: '导出为 KeePass 兼容文件',
-          onTap: viewModel.busy ? null : () => _exportKdbx(context, viewModel),
-        ),
+        // 1.2.2：「备份与恢复 / 导入 KDBX / 导出 KDBX / 分组管理」不属于云同步，
+        // 已统一收归「设置」页，这里不再重复出现。
       ],
     );
   }
@@ -647,19 +519,7 @@ class _VaultHomeScreenState extends State<VaultHomeScreen>
           value: _autofillEnabled,
           onChanged: _autofillBusy ? null : (value) => _toggleAutofill(),
         ),
-        const PineVaultSectionLabel('云同步'),
-        _navigationTile(
-          icon: Icons.cloud_outlined,
-          title: 'WebDAV 设置',
-          subtitle: '服务器地址、账号与密码',
-          onTap: () => _pushScreen(const WebDavSettingsScreen()),
-        ),
-        _navigationTile(
-          icon: Icons.history_rounded,
-          title: '同步历史',
-          subtitle: '查看最近同步记录',
-          onTap: () => _pushScreen(const SyncHistoryScreen()),
-        ),
+        // 1.2.2：「WebDAV 设置 / 同步历史」属于云同步，只在「同步」页出现。
         const PineVaultSectionLabel('数据'),
         _navigationTile(
           icon: Icons.settings_backup_restore_rounded,
@@ -676,12 +536,20 @@ class _VaultHomeScreenState extends State<VaultHomeScreen>
         _navigationTile(
           icon: Icons.file_download_outlined,
           title: '导入 KDBX',
+          subtitle: '从 KeePass 文件导入条目',
           onTap: viewModel.busy ? null : () => _importKdbx(context, viewModel),
         ),
         _navigationTile(
           icon: Icons.file_upload_outlined,
           title: '导出 KDBX',
+          subtitle: '导出为 KeePass 兼容文件',
           onTap: viewModel.busy ? null : () => _exportKdbx(context, viewModel),
+        ),
+        _navigationTile(
+          icon: Icons.cleaning_services_outlined,
+          title: '清理缓存',
+          subtitle: '清除应用列表与图标等临时缓存',
+          onTap: () => _clearCache(context),
         ),
         const PineVaultSectionLabel('显示与排序'),
         _switchTile(
@@ -718,8 +586,14 @@ class _VaultHomeScreenState extends State<VaultHomeScreen>
           child: PineVaultListTile(
             icon: Icons.info_outline_rounded,
             title: '松匣 PineVault',
-            subtitle: '版本 1.2.1',
+            subtitle: '版本 1.2.2',
           ),
+        ),
+        _navigationTile(
+          icon: Icons.mail_outline_rounded,
+          title: '联系开发者',
+          subtitle: _developerEmail,
+          onTap: () => _contactDeveloper(context),
         ),
       ],
     );

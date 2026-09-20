@@ -98,7 +98,7 @@ class _ItemEditorDialogState extends State<_ItemEditorDialog> {
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
           borderSide: BorderSide(
-            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.35),
+            color: theme.colorScheme.outlineVariant,
           ),
         ),
         focusedBorder: OutlineInputBorder(
@@ -730,6 +730,15 @@ class _AppSelectorState extends State<_AppSelector> {
     });
   }
 
+  InstalledApp? _appFor(String packageName) {
+    final apps = _apps;
+    if (apps == null) return null;
+    for (final app in apps) {
+      if (app.packageName == packageName) return app;
+    }
+    return null;
+  }
+
   String _labelFor(String packageName) {
     final apps = _apps;
     if (apps != null) {
@@ -798,7 +807,7 @@ class _AppSelectorState extends State<_AppSelector> {
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(14),
                 borderSide: BorderSide(
-                  color: theme.colorScheme.outlineVariant.withValues(alpha: 0.35),
+                  color: theme.colorScheme.outlineVariant,
                 ),
               ),
             ),
@@ -822,6 +831,7 @@ class _AppSelectorState extends State<_AppSelector> {
             children: [
               for (final packageName in selected)
                 InputChip(
+                  avatar: _AppIcon(icon: _appFor(packageName)?.icon, size: 22),
                   label: Text(_labelFor(packageName)),
                   tooltip: packageName,
                   onDeleted: widget.enabled
@@ -836,6 +846,50 @@ class _AppSelectorState extends State<_AppSelector> {
           ),
         ],
       ],
+    );
+  }
+}
+
+/// 应用图标：优先展示原生侧提取的 PNG，缺失时回退为通用图标。
+class _AppIcon extends StatelessWidget {
+  const _AppIcon({required this.icon, this.size = 32});
+
+  final Uint8List? icon;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    final bytes = icon;
+    if (bytes == null || bytes.isEmpty) return _fallback(context);
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(size * 0.28),
+      child: Image.memory(
+        bytes,
+        width: size,
+        height: size,
+        fit: BoxFit.cover,
+        gaplessPlayback: true,
+        filterQuality: FilterQuality.medium,
+        errorBuilder: (context, error, stackTrace) => _fallback(context),
+      ),
+    );
+  }
+
+  Widget _fallback(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(size * 0.28),
+      ),
+      alignment: Alignment.center,
+      child: Icon(
+        Icons.apps_rounded,
+        size: size * 0.62,
+        color: theme.colorScheme.onSurfaceVariant,
+      ),
     );
   }
 }
@@ -926,9 +980,11 @@ class _AppPickerSheetState extends State<_AppPickerSheet> {
                       itemCount: apps.length,
                       itemBuilder: (context, index) {
                         final app = apps[index];
-                        return CheckboxListTile(
+                        final checked = _selected.contains(app.packageName);
+                        return ListTile(
                           dense: true,
-                          value: _selected.contains(app.packageName),
+                          contentPadding: EdgeInsets.zero,
+                          leading: _AppIcon(icon: app.icon),
                           title: Text(
                             app.label.isEmpty ? app.packageName : app.label,
                             maxLines: 1,
@@ -939,11 +995,21 @@ class _AppPickerSheetState extends State<_AppPickerSheet> {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
-                          onChanged: (value) => setState(() {
-                            if (value == true) {
-                              _selected.add(app.packageName);
-                            } else {
+                          trailing: Checkbox(
+                            value: checked,
+                            onChanged: (value) => setState(() {
+                              if (value == true) {
+                                _selected.add(app.packageName);
+                              } else {
+                                _selected.remove(app.packageName);
+                              }
+                            }),
+                          ),
+                          onTap: () => setState(() {
+                            if (checked) {
                               _selected.remove(app.packageName);
+                            } else {
+                              _selected.add(app.packageName);
                             }
                           }),
                         );

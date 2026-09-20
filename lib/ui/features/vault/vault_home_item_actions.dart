@@ -162,7 +162,7 @@ class _EmptyVault extends StatelessWidget {
           ),
           if (!hasQuery) ...[
             const SizedBox(height: 8),
-            const Text('点击“新建”保存第一条密码。'),
+            const Text('点击上方「新建密码」保存第一条密码。'),
           ],
         ],
       ),

@@ -1,8 +1,18 @@
 import 'package:flutter/material.dart';
 
-/// iOS 风格底部四栏导航。
+import 'app_theme.dart';
+
+/// 底部三栏导航（1.2.2）。
 ///
-/// 特点：无阴影、顶部细分隔线、选中态使用品牌浅绿、图标与文字紧凑排布。
+/// 1.2.1 是四栏（密码库 / 新建 / 同步 / 设置），"新建"本身不是一个页面，
+/// 却占了一个常驻 Tab，导致"新建页"里塞满了同步与设置的功能入口。
+/// 1.2.2 把"新建"去掉（改为密码库页里的一个动作），底栏回归三栏：
+/// 密码库 / 同步 / 设置。
+///
+/// 1.2.2 视觉：
+/// - 底栏底色 navLight #C9E5D5（比页面底 #DCEFE4 深一档），顶部 1px 实色分隔线。
+/// - 未选中：navUnselectedLight #47624F，对底栏底实测 5.00:1。
+/// - 选中：实心胶囊 mint700 #2C8360 + 白字，白字对胶囊实测 4.64:1。
 class PineVaultBottomNav extends StatelessWidget {
   const PineVaultBottomNav({
     super.key,
@@ -20,11 +30,6 @@ class PineVaultBottomNav extends StatelessWidget {
       label: '密码库',
     ),
     _NavEntry(
-      icon: Icons.add_circle_outline,
-      activeIcon: Icons.add_circle_rounded,
-      label: '新建',
-    ),
-    _NavEntry(
       icon: Icons.cloud_sync_outlined,
       activeIcon: Icons.cloud_sync_rounded,
       label: '同步',
@@ -36,14 +41,16 @@ class PineVaultBottomNav extends StatelessWidget {
     ),
   ];
 
+  /// 底栏只有三栏，单独暴露出去给测试断言用。
+  static int get entryCount => _entries.length;
+
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     return Container(
-      decoration: BoxDecoration(
-        color: scheme.surfaceContainerLowest.withValues(alpha: 0.97),
+      decoration: const BoxDecoration(
+        color: PineVaultPalette.navLight,
         border: Border(
-          top: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.7)),
+          top: BorderSide(color: PineVaultPalette.borderLight),
         ),
       ),
       child: SafeArea(
@@ -93,38 +100,52 @@ class _BottomNavItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final color = selected
-        ? scheme.primary
-        : scheme.onSurfaceVariant.withValues(alpha: 0.85);
+    // 选中态：实心胶囊 + 白字（4.64:1）；
+    // 未选中态：无底 + 深绿字（对底栏底 5.00:1）。
+    final foreground =
+        selected ? Colors.white : PineVaultPalette.navUnselectedLight;
+
     return InkResponse(
       onTap: onTap,
       radius: 46,
       containedInkWell: true,
       highlightShape: BoxShape.rectangle,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          AnimatedSwitcher(
-            duration: const Duration(milliseconds: 180),
-            child: Icon(
-              selected ? entry.activeIcon : entry.icon,
-              key: ValueKey<bool>(selected),
-              size: 24,
-              color: color,
-            ),
+      child: Center(
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOut,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+          decoration: BoxDecoration(
+            color: selected ? PineVaultPalette.mint700 : Colors.transparent,
+            borderRadius: BorderRadius.circular(18),
           ),
-          const SizedBox(height: 3),
-          Text(
-            entry.label,
-            style: TextStyle(
-              fontSize: 11,
-              height: 1.1,
-              color: color,
-              fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-            ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 180),
+                child: Icon(
+                  selected ? entry.activeIcon : entry.icon,
+                  key: ValueKey<bool>(selected),
+                  size: 23,
+                  color: foreground,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                entry.label,
+                style: TextStyle(
+                  fontSize: 11.5,
+                  height: 1.1,
+                  color: foreground,
+                  fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+                  letterSpacing: 0.2,
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

@@ -34,7 +34,9 @@ class PineVaultSurface extends StatelessWidget {
         color: color ?? scheme.surfaceContainerLowest,
         borderRadius: BorderRadius.circular(radius),
         border: border
-            ? Border.all(color: scheme.outlineVariant.withValues(alpha: 0.55))
+            // 1.2.2：不再用 alpha 稀释（1.2.1 就是这样糊掉的）。
+            // 直接用 outline = #54A17F，对白卡实测 3.10:1。
+            ? Border.all(color: scheme.outline)
             : null,
       ),
       child: Padding(padding: padding, child: child),
@@ -208,7 +210,8 @@ class PineVaultTileDivider extends StatelessWidget {
       thickness: 1,
       indent: 68,
       endIndent: 14,
-      color: scheme.outlineVariant.withValues(alpha: 0.5),
+      // 1.2.2：去掉 alpha 0.5 的稀释，用实色 #8FCDAF（对白卡 1.82:1）。
+      color: scheme.outlineVariant,
     );
   }
 }

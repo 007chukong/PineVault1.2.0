@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 
-/// 松匣（PineVault）全新视觉规范 —— 以「浅绿」为核心的浅色系配色。
+/// 松匣（PineVault）视觉规范 —— 以「浅绿」为核心的浅色系配色（1.2.2 加深版）。
 ///
-/// 设计原则：
-/// 1. 主色为温和的薄荷绿，整体偏浅、偏亮，避免大块深色。
-/// 2. 背景使用极浅的绿色白（mint50），卡片用纯白，形成柔和层次。
-/// 3. 仅用少量辅助浅色（天蓝/青柠/沙金/珊瑚）做状态区分，不抢主色。
-/// 4. 统一圆角与间距，界面观感更「轻」。
+/// 1.2.2 的设计原则（针对 1.2.1「太糊、看不清」的返工）：
+/// 1. 页面底 / 顶栏 / 底栏使用**实体浅绿**（不再用近白的 mint50），白色卡片才浮得起来。
+/// 2. 卡片保持纯白，但加**明确的绿色描边**：对白卡 3.10:1（非文本 UI 需 ≥3:1）。
+/// 3. 次级文字 5.43:1、分割线 1.82:1，整体加深一档；主色由 mint600 加深到 mint700，
+///    白字按钮对比度由 3.17:1 提升到 **4.64:1**（AA 达标）。
+/// 4. 底栏底色比页面再深一档（5.00:1 的未选中文字），选中项用白色胶囊 + mint700。
+///
+/// 以上对比度均为 WCAG 2.1 公式实测值，不是估计。
 ///
 /// 说明：为避免不同 Flutter 版本间 ThemeData 子主题类型改名
 /// （如 AppBarTheme -> AppBarThemeData）带来的编译风险，本文件只设置
@@ -36,12 +39,29 @@ class PineVaultPalette {
   static const Color sand = Color(0xFFD9B45E);
   static const Color coral = Color(0xFFC1503C);
 
-  // ---- 表面与文字 ----
-  static const Color surfaceLight = mint50;
+  // ---- 表面与文字（1.2.2 实测对比度） ----
+  /// 页面底 / 顶栏底色：实体浅绿（不再是近白）。
+  static const Color pageLight = Color(0xFFDCEFE4);
+
+  /// 底部导航底色：比页面底再深一档。
+  static const Color navLight = Color(0xFFC9E5D5);
+
+  static const Color surfaceLight = pageLight;
   static const Color cardLight = Colors.white;
-  static const Color dividerLight = Color(0xFFE1EFE8);
+
+  /// 卡片描边：对白卡 3.10:1。
+  static const Color borderLight = Color(0xFF54A17F);
+
+  /// 卡内分割线：对白卡 1.82:1。
+  static const Color dividerLight = Color(0xFF8FCDAF);
+
   static const Color textPrimaryLight = Color(0xFF17332A);
-  static const Color textSecondaryLight = Color(0xFF6B8579);
+
+  /// 次级文字：对白卡 5.43:1、对页底 4.53:1。
+  static const Color textSecondaryLight = Color(0xFF55705F);
+
+  /// 底栏未选中文字：对底栏底 5.00:1。
+  static const Color navUnselectedLight = Color(0xFF47624F);
 
   static const Color surfaceDark = Color(0xFF0F1A15);
   static const Color cardDark = Color(0xFF17251F);
@@ -109,7 +129,7 @@ ColorScheme buildPineVaultColorScheme(Brightness brightness) {
 
   if (isLight) {
     return base.copyWith(
-      primary: PineVaultPalette.mint600,
+      primary: PineVaultPalette.mint700,
       onPrimary: Colors.white,
       primaryContainer: PineVaultPalette.mint100,
       onPrimaryContainer: PineVaultPalette.mint900,
@@ -128,12 +148,15 @@ ColorScheme buildPineVaultColorScheme(Brightness brightness) {
       surface: PineVaultPalette.surfaceLight,
       onSurface: PineVaultPalette.textPrimaryLight,
       onSurfaceVariant: PineVaultPalette.textSecondaryLight,
-      surfaceContainerLowest: Colors.white,
-      surfaceContainerLow: PineVaultPalette.mint50,
-      surfaceContainer: PineVaultPalette.mint100,
+      // 1.2.2：页面底已是实体浅绿，卡片/列表项一律用纯白才浮得起来。
+      surfaceContainerLowest: PineVaultPalette.cardLight,
+      surfaceContainerLow: PineVaultPalette.cardLight,
+      surfaceContainer: const Color(0xFFEAF7F1),
       surfaceContainerHigh: PineVaultPalette.mint200,
       surfaceContainerHighest: PineVaultPalette.mint200,
-      outline: const Color(0xFFB9D5C7),
+      /// 卡片描边（非文本 UI 需 ≥3:1，此处对白卡 3.10:1）。
+      outline: PineVaultPalette.borderLight,
+      /// 卡内分割线（弱但可见：对白卡 1.82:1）。
       outlineVariant: PineVaultPalette.dividerLight,
       shadow: const Color(0x14305B49),
       scrim: const Color(0x80224536),
