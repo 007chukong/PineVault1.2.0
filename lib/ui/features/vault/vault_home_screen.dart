@@ -10,6 +10,7 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../data/models/kdbx_transfer_data.dart';
+import '../../../data/services/installed_apps_service.dart';
 import '../../../data/services/native_autofill_service.dart';
 import '../../../data/services/totp_service.dart';
 import '../../../domain/models/totp_config.dart';

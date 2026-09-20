@@ -127,6 +127,10 @@ class _VaultList extends StatelessWidget {
                       item.username.isEmpty ? '未设置用户名' : item.username,
                       if (viewModel.showWebsites && item.urls.isNotEmpty)
                         item.urls.first,
+                      if (viewModel.showWebsites &&
+                          item.urls.isEmpty &&
+                          item.appPackages.isNotEmpty)
+                        item.appPackages.first,
                       if (viewModel.showPasswords)
                         item.password.isEmpty ? '未设置密码' : item.password,
                     ].join(' · ');
@@ -398,6 +402,7 @@ class _BatchActionBar extends StatelessWidget {
             '账号：${item.username}',
             '密码：${item.password}',
             '网站：${item.urls.isEmpty ? '' : item.urls.first}',
+            if (item.appPackages.isNotEmpty) '应用：${item.appPackages.join(', ')}',
             '备注：${item.notes}',
             if (item.tags.isNotEmpty) '标签：${item.tags.join(', ')}',
           ].join('\n'),

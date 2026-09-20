@@ -26,11 +26,39 @@ class _ItemViewerState extends State<_ItemViewer> {
   bool _obscurePassword = true;
   bool _busy = false;
   OverlayEntry? _toastEntry;
+  List<InstalledApp>? _apps;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadInstalledApps();
+  }
 
   @override
   void dispose() {
     _toastEntry?.remove();
     super.dispose();
+  }
+
+  /// 预取已安装应用列表，用于把已绑定的包名展示为可读的应用名。
+  Future<void> _loadInstalledApps() async {
+    if (!InstalledAppsService.isSupported) return;
+    final apps = await InstalledAppsService.list();
+    if (!mounted) return;
+    setState(() => _apps = apps);
+  }
+
+  /// 优先展示应用名，回退到包名本身。
+  String _appLabel(String packageName) {
+    final apps = _apps;
+    if (apps != null) {
+      for (final app in apps) {
+        if (app.packageName == packageName && app.label.isNotEmpty) {
+          return app.label;
+        }
+      }
+    }
+    return packageName;
   }
 
   @override
@@ -313,6 +341,22 @@ class _ItemViewerState extends State<_ItemViewer> {
                             ? null
                             : () => _openWebsite(widget.item.urls.first),
                       ),
+                      if (widget.item.scope != VaultItemScope.both)
+                        valueRow(
+                          '适用类型',
+                          widget.item.scope.label,
+                          Icons.category_outlined,
+                        ),
+                      if (widget.item.appPackages.isNotEmpty)
+                        valueRow(
+                          '应用',
+                          widget.item.appPackages
+                              .map(_appLabel)
+                              .join(' · '),
+                          Icons.apps_outlined,
+                          onCopy: () =>
+                              _copy(widget.item.appPackages.join(', '), '应用'),
+                        ),
                       if (widget.item.notes.isNotEmpty)
                         valueRow(
                           '备注',

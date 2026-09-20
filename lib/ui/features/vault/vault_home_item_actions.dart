@@ -1,6 +1,15 @@
 part of 'vault_home_screen.dart';
 
-enum _ItemAction { all, username, password, totp, website, notes, openWebsite }
+enum _ItemAction {
+  all,
+  username,
+  password,
+  totp,
+  website,
+  app,
+  notes,
+  openWebsite,
+}
 
 Future<void> _showItemActions(BuildContext context, VaultItem item) async {
   final action = await showModalBottomSheet<_ItemAction>(
@@ -41,6 +50,12 @@ Future<void> _showItemActions(BuildContext context, VaultItem item) async {
             title: const Text('复制网站'),
             onTap: () => Navigator.pop(context, _ItemAction.website),
           ),
+          if (item.appPackages.isNotEmpty)
+            ListTile(
+              leading: const Icon(Icons.apps_outlined),
+              title: const Text('复制应用'),
+              onTap: () => Navigator.pop(context, _ItemAction.app),
+            ),
           ListTile(
             leading: const Icon(Icons.notes_outlined),
             title: const Text('复制备注'),
@@ -79,6 +94,8 @@ Future<void> _showItemActions(BuildContext context, VaultItem item) async {
         item.urls.isEmpty ? '' : item.urls.first,
         '网站',
       );
+    case _ItemAction.app:
+      await _copyItemText(context, item.appPackages.join(', '), '应用');
     case _ItemAction.notes:
       await _copyItemText(context, item.notes, '备注');
     case _ItemAction.openWebsite:
@@ -91,6 +108,7 @@ String _allItemText(VaultItem item) => [
   '账号：${item.username}',
   '密码：${item.password}',
   '网站：${item.urls.isEmpty ? '' : item.urls.first}',
+  if (item.appPackages.isNotEmpty) '应用：${item.appPackages.join(', ')}',
   '备注：${item.notes}',
 ].join('\n');
 

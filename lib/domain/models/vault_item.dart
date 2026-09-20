@@ -2,6 +2,22 @@ import 'totp_config.dart';
 
 enum VaultItemType { login, secureNote }
 
+/// 条目适用范围：网站、应用，或两者皆可。
+enum VaultItemScope {
+  web,
+  app,
+  both;
+
+  static VaultItemScope fromName(String? name) => VaultItemScope.values
+      .firstWhere((value) => value.name == name, orElse: () => VaultItemScope.both);
+
+  String get label => switch (this) {
+        VaultItemScope.web => '网站',
+        VaultItemScope.app => '应用',
+        VaultItemScope.both => '应用及网站',
+      };
+}
+
 class VaultItem {
   const VaultItem({
     required this.id,
@@ -11,6 +27,8 @@ class VaultItem {
     required this.username,
     required this.password,
     required this.urls,
+    this.appPackages = const [],
+    this.scope = VaultItemScope.both,
     required this.notes,
     this.tags = const [],
     this.totp,
@@ -27,6 +45,8 @@ class VaultItem {
   final String username;
   final String password;
   final List<String> urls;
+  final List<String> appPackages;
+  final VaultItemScope scope;
   final String notes;
   final List<String> tags;
   final TotpConfig? totp;
@@ -43,7 +63,13 @@ class VaultItem {
       title: json['title'] as String,
       username: json['username'] as String,
       password: json['password'] as String,
-      urls: List.unmodifiable((json['urls'] as List<dynamic>).cast<String>()),
+      urls: List.unmodifiable(
+        (json['urls'] as List<dynamic>? ?? const []).cast<String>(),
+      ),
+      appPackages: List.unmodifiable(
+        (json['appPackages'] as List<dynamic>? ?? const []).cast<String>(),
+      ),
+      scope: VaultItemScope.fromName(json['scope'] as String?),
       notes: json['notes'] as String,
       tags: List.unmodifiable(
         (json['tags'] as List<dynamic>? ?? const []).cast<String>(),
@@ -66,6 +92,8 @@ class VaultItem {
     'username': username,
     'password': password,
     'urls': urls,
+    'appPackages': appPackages,
+    'scope': scope.name,
     'notes': notes,
     'tags': tags,
     if (totp case final value?) 'totp': value.toJson(),
@@ -81,6 +109,8 @@ class VaultItem {
     String? username,
     String? password,
     List<String>? urls,
+    List<String>? appPackages,
+    VaultItemScope? scope,
     String? notes,
     List<String>? tags,
     TotpConfig? totp,
@@ -97,6 +127,8 @@ class VaultItem {
       username: username ?? this.username,
       password: password ?? this.password,
       urls: List.unmodifiable(urls ?? this.urls),
+      appPackages: List.unmodifiable(appPackages ?? this.appPackages),
+      scope: scope ?? this.scope,
       notes: notes ?? this.notes,
       tags: List.unmodifiable(tags ?? this.tags),
       totp: clearTotp ? null : totp ?? this.totp,

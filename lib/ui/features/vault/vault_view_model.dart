@@ -125,6 +125,9 @@ class VaultViewModel extends ChangeNotifier {
                     item.username.toLowerCase().contains(normalizedQuery) ||
                     item.urls.any(
                       (url) => url.toLowerCase().contains(normalizedQuery),
+                    ) ||
+                    item.appPackages.any(
+                      (pkg) => pkg.toLowerCase().contains(normalizedQuery),
                     ));
           });
     final result = filtered.toList(growable: false);
@@ -336,6 +339,8 @@ class VaultViewModel extends ChangeNotifier {
     required String username,
     required String password,
     required String url,
+    List<String> appPackages = const [],
+    VaultItemScope scope = VaultItemScope.both,
     required String notes,
     List<String> tags = const [],
     TotpConfig? totp,
@@ -351,6 +356,8 @@ class VaultViewModel extends ChangeNotifier {
         username: username,
         password: password,
         url: url,
+        appPackages: appPackages,
+        scope: scope,
         notes: notes,
         tags: tags,
         totp: totp,

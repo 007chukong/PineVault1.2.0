@@ -198,6 +198,8 @@ class VaultMergeService {
       username: item.username,
       password: item.password,
       urls: item.urls,
+      appPackages: item.appPackages,
+      scope: item.scope,
       notes: item.notes,
       tags: item.tags,
       totp: item.totp,

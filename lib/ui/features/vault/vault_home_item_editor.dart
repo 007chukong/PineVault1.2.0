@@ -28,6 +28,8 @@ class _ItemEditorDialogState extends State<_ItemEditorDialog> {
   late TotpAlgorithm _totpAlgorithm;
   late int _totpDigits;
   late int _totpPeriod;
+  late VaultItemScope _scope;
+  List<String> _appPackages = const [];
   bool _obscurePassword = true;
   bool _obscureTotpSecret = true;
   bool _busy = false;
@@ -54,6 +56,8 @@ class _ItemEditorDialogState extends State<_ItemEditorDialog> {
     _totpAlgorithm = totp?.algorithm ?? TotpAlgorithm.sha1;
     _totpDigits = totp?.digits ?? 6;
     _totpPeriod = totp?.period ?? 30;
+    _scope = item?.scope ?? VaultItemScope.both;
+    _appPackages = List<String>.from(item?.appPackages ?? const []);
   }
 
   @override
@@ -389,6 +393,33 @@ class _ItemEditorDialogState extends State<_ItemEditorDialog> {
                           decoration: decoration('网站', Icons.link_outlined),
                         ),
                         const SizedBox(height: 10),
+                        DropdownButtonFormField<VaultItemScope>(
+                          initialValue: _scope,
+                          decoration: decoration(
+                            '适用类型',
+                            Icons.category_outlined,
+                          ),
+                          items: [
+                            for (final scope in VaultItemScope.values)
+                              DropdownMenuItem(
+                                value: scope,
+                                child: Text(scope.label),
+                              ),
+                          ],
+                          onChanged: _busy
+                              ? null
+                              : (value) => setState(
+                                  () => _scope = value ?? _scope,
+                                ),
+                        ),
+                        const SizedBox(height: 10),
+                        _AppSelector(
+                          selected: _appPackages,
+                          enabled: !_busy,
+                          onChanged: (values) =>
+                              setState(() => _appPackages = values),
+                        ),
+                        const SizedBox(height: 10),
                         TextFormField(
                           controller: _notes,
                           minLines: 2,
@@ -496,6 +527,8 @@ class _ItemEditorDialogState extends State<_ItemEditorDialog> {
       username: _username.text,
       password: _password.text,
       url: _url.text,
+      appPackages: _appPackages,
+      scope: _scope,
       notes: _notes.text,
       tags: _tags.text
           .split(',')
@@ -656,5 +689,291 @@ class _TotpQrScannerScreenState extends State<_TotpQrScannerScreen> {
       Navigator.pop(context, value);
       return;
     }
+  }
+}
+
+/// 编辑器中的「应用」字段：展示已选应用，并可打开系统应用列表进行多选。
+class _AppSelector extends StatefulWidget {
+  const _AppSelector({
+    required this.selected,
+    required this.enabled,
+    required this.onChanged,
+  });
+
+  final List<String> selected;
+  final bool enabled;
+  final ValueChanged<List<String>> onChanged;
+
+  @override
+  State<_AppSelector> createState() => _AppSelectorState();
+}
+
+class _AppSelectorState extends State<_AppSelector> {
+  List<InstalledApp>? _apps;
+  bool _loading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    if (_apps != null || _loading) return;
+    if (!InstalledAppsService.isSupported) return;
+    setState(() => _loading = true);
+    final apps = await InstalledAppsService.list();
+    if (!mounted) return;
+    setState(() {
+      _apps = apps;
+      _loading = false;
+    });
+  }
+
+  String _labelFor(String packageName) {
+    final apps = _apps;
+    if (apps != null) {
+      for (final app in apps) {
+        if (app.packageName == packageName && app.label.isNotEmpty) {
+          return app.label;
+        }
+      }
+    }
+    return packageName;
+  }
+
+  Future<void> _pick() async {
+    final apps = _apps ?? await InstalledAppsService.list();
+    if (!mounted) return;
+    setState(() => _apps = apps);
+    final result = await showModalBottomSheet<List<String>>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (_) => _AppPickerSheet(
+        apps: apps,
+        initialSelected: widget.selected,
+      ),
+    );
+    if (result != null) widget.onChanged(result);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final selected = widget.selected;
+    final supported = InstalledAppsService.isSupported;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        InkWell(
+          onTap: !widget.enabled || !supported ? null : _pick,
+          borderRadius: BorderRadius.circular(14),
+          child: InputDecorator(
+            decoration: InputDecoration(
+              labelText: '应用',
+              prefixIcon: const Icon(Icons.apps_outlined, size: 20),
+              suffixIcon: _loading
+                  ? const Padding(
+                      padding: EdgeInsets.all(12),
+                      child: SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    )
+                  : const Icon(Icons.chevron_right, size: 20),
+              filled: true,
+              fillColor: theme.colorScheme.surfaceContainerLow,
+              isDense: true,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 14,
+                vertical: 14,
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: BorderSide.none,
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: BorderSide(
+                  color: theme.colorScheme.outlineVariant.withValues(alpha: 0.35),
+                ),
+              ),
+            ),
+            child: Text(
+              !supported
+                  ? '仅 Android 支持读取应用列表'
+                  : selected.isEmpty
+                  ? '选择适用的应用'
+                  : '已选择 ${selected.length} 个应用',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.bodyMedium,
+            ),
+          ),
+        ),
+        if (selected.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 4,
+            children: [
+              for (final packageName in selected)
+                InputChip(
+                  label: Text(_labelFor(packageName)),
+                  tooltip: packageName,
+                  onDeleted: widget.enabled
+                      ? () => widget.onChanged(
+                          selected
+                              .where((value) => value != packageName)
+                              .toList(growable: false),
+                        )
+                      : null,
+                ),
+            ],
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+/// 系统应用多选列表。
+class _AppPickerSheet extends StatefulWidget {
+  const _AppPickerSheet({required this.apps, required this.initialSelected});
+
+  final List<InstalledApp> apps;
+  final List<String> initialSelected;
+
+  @override
+  State<_AppPickerSheet> createState() => _AppPickerSheetState();
+}
+
+class _AppPickerSheetState extends State<_AppPickerSheet> {
+  late final Set<String> _selected = {...widget.initialSelected};
+  final _search = TextEditingController();
+  String _query = '';
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final rawQuery = _query.trim();
+    final query = rawQuery.toLowerCase();
+    final apps = query.isEmpty
+        ? widget.apps
+        : widget.apps
+              .where(
+                (app) =>
+                    app.label.toLowerCase().contains(query) ||
+                    app.packageName.toLowerCase().contains(query),
+              )
+              .toList(growable: false);
+    final manualCandidate =
+        rawQuery.isNotEmpty &&
+            !widget.apps.any((app) => app.packageName == rawQuery)
+        ? rawQuery
+        : null;
+
+    return SafeArea(
+      child: Padding(
+        padding: EdgeInsets.only(
+          left: 16,
+          right: 16,
+          bottom: MediaQuery.viewInsetsOf(context).bottom + 16,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('选择应用', style: theme.textTheme.titleMedium),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _search,
+              decoration: const InputDecoration(
+                hintText: '搜索应用名称或包名',
+                prefixIcon: Icon(Icons.search),
+                isDense: true,
+                border: OutlineInputBorder(),
+              ),
+              onChanged: (value) => setState(() => _query = value),
+            ),
+            if (manualCandidate != null)
+              ListTile(
+                dense: true,
+                leading: const Icon(Icons.add),
+                title: Text(
+                  '手动添加：$manualCandidate',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                onTap: () => setState(() => _selected.add(manualCandidate)),
+              ),
+            Flexible(
+              child: apps.isEmpty
+                  ? const Padding(
+                      padding: EdgeInsets.all(24),
+                      child: Text('没有找到应用'),
+                    )
+                  : ListView.builder(
+                      shrinkWrap: true,
+                      itemCount: apps.length,
+                      itemBuilder: (context, index) {
+                        final app = apps[index];
+                        return CheckboxListTile(
+                          dense: true,
+                          value: _selected.contains(app.packageName),
+                          title: Text(
+                            app.label.isEmpty ? app.packageName : app.label,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          subtitle: Text(
+                            app.packageName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          onChanged: (value) => setState(() {
+                            if (value == true) {
+                              _selected.add(app.packageName);
+                            } else {
+                              _selected.remove(app.packageName);
+                            }
+                          }),
+                        );
+                      },
+                    ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('取消'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: FilledButton(
+                    onPressed: () => Navigator.pop(
+                      context,
+                      _selected.toList(growable: false),
+                    ),
+                    child: Text('确定 (${_selected.length})'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

@@ -277,6 +277,8 @@ class VaultRepository {
     required String username,
     required String password,
     required String url,
+    List<String> appPackages = const [],
+    VaultItemScope scope = VaultItemScope.both,
     required String notes,
     List<String> tags = const [],
     TotpConfig? totp,
@@ -284,6 +286,11 @@ class VaultRepository {
   }) async {
     final vault = _requireVault();
     final now = DateTime.now().toUtc();
+    final normalizedApps = appPackages
+        .map((value) => value.trim())
+        .where((value) => value.isNotEmpty)
+        .toSet()
+        .toList(growable: false);
     final item = existing == null
         ? VaultItem(
             id: _uuid.v4(),
@@ -293,6 +300,8 @@ class VaultRepository {
             username: username.trim(),
             password: password,
             urls: url.trim().isEmpty ? const [] : [url.trim()],
+            appPackages: normalizedApps,
+            scope: scope,
             notes: notes,
             tags: tags,
             totp: totp,
@@ -307,6 +316,8 @@ class VaultRepository {
             username: username.trim(),
             password: password,
             urls: url.trim().isEmpty ? const [] : [url.trim()],
+            appPackages: normalizedApps,
+            scope: scope,
             notes: notes,
             tags: tags,
             totp: totp,

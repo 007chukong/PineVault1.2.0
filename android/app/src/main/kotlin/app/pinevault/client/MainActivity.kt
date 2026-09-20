@@ -62,9 +62,37 @@ class MainActivity : FlutterFragmentActivity() {
                 else -> result.notImplemented()
             }
         }
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            APPS_CHANNEL,
+        ).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "list" -> {
+                    try {
+                        val pm = packageManager
+                        val apps = pm.getInstalledApplications(0)
+                            .mapNotNull { info ->
+                                val launchIntent =
+                                    pm.getLaunchIntentForPackage(info.packageName)
+                                if (launchIntent == null) return@mapNotNull null
+                                mapOf(
+                                    "label" to pm.getApplicationLabel(info).toString(),
+                                    "packageName" to info.packageName,
+                                )
+                            }
+                            .sortedBy { it["label"]?.lowercase() }
+                        result.success(apps)
+                    } catch (error: Exception) {
+                        result.error("installed_apps_error", error.message, null)
+                    }
+                }
+                else -> result.notImplemented()
+            }
+        }
     }
 
     companion object {
         private const val SETTINGS_CHANNEL = "app.pinevault.client/autofill_settings"
+        private const val APPS_CHANNEL = "app.pinevault.client/installed_apps"
     }
 }

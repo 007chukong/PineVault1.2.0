@@ -306,11 +306,26 @@ class _AutofillSavePromptState extends State<_AutofillSavePrompt> {
       _error = null;
     });
     final viewModel = context.read<VaultViewModel>();
+    // 若来自浏览器（存在网站域名）则按网站条目保存；否则绑定到来源应用。
+    final request = widget.request;
+    final fromWeb = request.webDomains.isNotEmpty;
+    final appPackages = fromWeb
+        ? const <String>[]
+        : request.packageNames
+              .map((value) => value.trim())
+              .where((value) => value.isNotEmpty)
+              .toSet()
+              .toList(growable: false);
+    final scope = !fromWeb && appPackages.isNotEmpty
+        ? VaultItemScope.app
+        : VaultItemScope.both;
     final saved = await viewModel.saveItem(
       title: _title.text,
       username: _username.text,
       password: _password.text,
       url: _url.text,
+      appPackages: appPackages,
+      scope: scope,
       notes: '',
       favorite: false,
     );
