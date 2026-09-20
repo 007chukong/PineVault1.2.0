@@ -10,6 +10,7 @@ import '../ui/features/settings/webdav_settings_view_model.dart';
 import '../ui/features/unlock/unlock_screen.dart';
 import '../ui/features/vault/vault_home_screen.dart';
 import '../ui/features/vault/vault_view_model.dart';
+import '../ui/core/app_theme.dart';
 
 class PineVaultApp extends StatefulWidget {
   const PineVaultApp({
@@ -109,13 +110,8 @@ class _PineVaultAppState extends State<PineVaultApp>
     final windowsFontFamily = defaultTargetPlatform == TargetPlatform.windows
         ? 'Microsoft YaHei UI'
         : null;
-    final lightScheme = ColorScheme.fromSeed(
-      seedColor: const Color(0xFF176B52),
-    );
-    final darkScheme = ColorScheme.fromSeed(
-      seedColor: const Color(0xFF72D7B2),
-      brightness: Brightness.dark,
-    );
+    final lightScheme = buildPineVaultColorScheme(Brightness.light);
+    final darkScheme = buildPineVaultColorScheme(Brightness.dark);
     return MultiProvider(
       providers: [
         ChangeNotifierProvider.value(value: widget.vaultViewModel),

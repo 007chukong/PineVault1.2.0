@@ -8,6 +8,7 @@ import '../data/services/native_autofill_service.dart';
 import '../domain/models/vault_item.dart';
 import '../domain/services/autofill_matcher.dart';
 import '../ui/core/vault_brand.dart';
+import '../ui/core/app_theme.dart';
 import '../ui/features/unlock/unlock_screen.dart';
 import '../ui/features/vault/vault_view_model.dart';
 
@@ -28,19 +29,12 @@ class AutofillApp extends StatelessWidget {
       child: MaterialApp(
         title: '松匣自动填充',
         debugShowCheckedModeBanner: false,
-        theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF176B52)),
+        theme: buildPineVaultTheme().copyWith(
           inputDecorationTheme: _autofillInputTheme(),
-          useMaterial3: true,
         ),
-        darkTheme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(
-            seedColor: const Color(0xFF72D7B2),
-            brightness: Brightness.dark,
-          ),
-          inputDecorationTheme: _autofillInputTheme(),
-          useMaterial3: true,
-        ),
+        darkTheme: buildPineVaultTheme(
+          brightness: Brightness.dark,
+        ).copyWith(inputDecorationTheme: _autofillInputTheme()),
         home: request.isSaveRequest
             ? _AutofillSaveFrame(child: _AutofillRouter(request: request))
             : _AutofillPickerFrame(request: request),
