@@ -1,24 +1,20 @@
-import 'dart:io';
-import 'dart:ui' show ImageFilter;
-
 import 'package:flutter/material.dart';
 
-import '../../data/services/app_preferences_service.dart';
-
-/// 全屏自定义背景层（1.2.4）。
+/// 全屏兜底背景层（1.2.4-1 起改为纯底色，不再渲染自定义图片）。
 ///
-/// 挂在 `MaterialApp.builder` 上，位于所有页面之下；配合
-/// `scaffoldBackgroundColor: Colors.transparent`，实现"主题皮肤"式效果：
-/// 背景图会铺满每个页面（含 AppBar、子页面与底栏上层区域）。
-///
-/// 1. 兜底底色（未启用自定义背景时 = `colorScheme.surface`，随明暗主题变化）；
-/// 2. 自定义图片（cover 铺满）；
-/// 3. 可选高斯模糊（作用于图片本身）；
-/// 4. 可选遮罩（白色半透明，保证文字对比度）；
-/// 5. 原有的 `child`（整个应用界面）。
-///
-/// 监听 [AppPreferences]，关闭背景设置页后立即生效，无需重启。
-/// 任何一步失败都静默降级为纯底色，不影响应用可用性。
+/// ============================ 维护说明（下次更新必看） ============================
+/// 1. 1.2.4-repair 曾支持「背景设置」：本层读取 AppPreferences 的
+///    backgroundPath / backgroundEnabled / backgroundOverlay / backgroundBlur 渲染自定义图片。
+///    1.2.4-1 按用户反馈**移除「背景设置」功能**（设置页入口与 background_settings_screen.dart
+///    均已删除），本层只保留「给透明 Scaffold 兜底」的职责，避免页面透明后露出黑色。
+/// 2. 页面底色统一由本层绘制，所以：
+///    - `app_theme.dart` 的 `scaffoldBackgroundColor` 必须保持 `Colors.transparent`；
+///    - 各页 Scaffold / AppBar 不要再设不透明 `backgroundColor`（除底栏自带的磨砂玻璃），
+///      否则会盖住本层底色。
+/// 3. AppPreferences 里仍保留 background* 字段与 getter/setter（兼容历史数据、避免老用户
+///    本地偏好解析出错），但已无任何 UI 入口、也不再被本层读取；将来若彻底清理，
+///    需先确认全项目无引用（含 background_settings_screen.dart 已被删除这一点）。
+/// ================================================================================
 class PineVaultBackgroundLayer extends StatelessWidget {
   const PineVaultBackgroundLayer({super.key, required this.child});
 
@@ -26,50 +22,13 @@ class PineVaultBackgroundLayer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: AppPreferences.instance,
-      builder: (BuildContext context, Widget? _) {
-        final AppPreferences prefs = AppPreferences.instance;
-        final String? path = prefs.backgroundPath;
-        final bool enabled =
-            prefs.backgroundEnabled && path != null && path.isNotEmpty;
-        File? file;
-        if (enabled) {
-          final File candidate = File(path);
-          if (candidate.existsSync()) {
-            file = candidate;
-          }
-        }
-        final double blur = prefs.backgroundBlur;
-        final double overlay = prefs.backgroundOverlay;
-        return Stack(
-          fit: StackFit.expand,
-          children: <Widget>[
-            ColoredBox(color: Theme.of(context).colorScheme.surface),
-            if (file != null)
-              Image.file(
-                file,
-                fit: BoxFit.cover,
-                filterQuality: FilterQuality.medium,
-                errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-              ),
-            if (file != null && blur > 0.1)
-              Positioned.fill(
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
-                  child: const ColoredBox(color: Colors.transparent),
-                ),
-              ),
-            if (file != null && overlay > 0.001)
-              Positioned.fill(
-                child: ColoredBox(
-                  color: Colors.white.withValues(alpha: overlay.clamp(0.0, 1.0)),
-                ),
-              ),
-            child,
-          ],
-        );
-      },
+    return Stack(
+      fit: StackFit.expand,
+      children: <Widget>[
+        // 兜底底色：跟随明暗主题（浅色 = 页面底色，深色 = 深色页面底色）。
+        ColoredBox(color: Theme.of(context).colorScheme.surface),
+        child,
+      ],
     );
   }
 }

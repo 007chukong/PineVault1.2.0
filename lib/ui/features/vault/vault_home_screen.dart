@@ -24,7 +24,6 @@ import '../../core/app_theme.dart';
 import '../../core/pine_vault_bottom_nav.dart';
 import '../../core/pine_vault_widgets.dart';
 import '../settings/autofill_exclude_screen.dart';
-import '../settings/background_settings_screen.dart';
 import '../settings/change_master_password_dialog.dart';
 import '../settings/device_unlock_sheet.dart';
 import '../settings/sync_history_screen.dart';
@@ -32,6 +31,7 @@ import '../settings/webdav_settings_screen.dart';
 import '../backup/backup_screen.dart';
 import '../backup/backup_view_model.dart';
 import 'vault_view_model.dart';
+import '../settings/version_history_screen.dart';
 
 part 'vault_home_kdbx.dart';
 part 'vault_home_list.dart';
@@ -632,13 +632,9 @@ class _VaultHomeScreenState extends State<VaultHomeScreen>
           onTap: () => _clearCache(context),
         ),
         const PineVaultSectionLabel('显示与排序'),
-        // 1.2.3：背景设置（图片 / 遮罩 / 模糊）。
-        _navigationTile(
-          icon: Icons.wallpaper_rounded,
-          title: '背景设置',
-          subtitle: '自定义页面背景图片、遮罩与模糊',
-          onTap: () => _pushScreen(const BackgroundSettingsScreen()),
-        ),
+        // 1.2.4-1：按反馈移除「背景设置」功能（入口 + 页面 + 背景图渲染）。
+        // 页面底色仍由 PineVaultBackgroundLayer 统一兜底，见
+        // lib/ui/core/pine_vault_background_layer.dart 的维护说明。
         _switchTile(
           icon: Icons.visibility_outlined,
           title: '展示密码',
@@ -666,14 +662,35 @@ class _VaultHomeScreenState extends State<VaultHomeScreen>
           onTap: viewModel.lock,
         ),
         const PineVaultSectionLabel('关于'),
-        const PineVaultSurface(
-          margin: EdgeInsets.only(bottom: 10),
+        PineVaultSurface(
+          margin: const EdgeInsets.only(bottom: 10),
           padding: EdgeInsets.zero,
           radius: PineVaultRadii.md,
+          // 1.2.4-1：「关于」卡片右侧新增「历史版本 >」入口，点击进入历史版本页
+          // （页面见 lib/ui/features/settings/version_history_screen.dart）。
           child: PineVaultListTile(
             icon: Icons.info_outline_rounded,
             title: '松匣 PineVault',
-            subtitle: '版本 1.2.4（repair）',
+            subtitle: '版本 1.2.4-1',
+            onTap: () => _openVersionHistory(context),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Text(
+                  '历史版本',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                ),
+                Icon(
+                  Icons.chevron_right_rounded,
+                  size: 20,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+              ],
+            ),
           ),
         ),
         _navigationTile(
@@ -693,6 +710,14 @@ class _VaultHomeScreenState extends State<VaultHomeScreen>
     );
   }
 
+  /// 1.2.4-1：打开「历史版本」页面（入口 = 设置页关于卡片右侧的「历史版本」）。
+  void _openVersionHistory(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => const VersionHistoryScreen(),
+      ),
+    );
+  }
   void _schedulePendingSaveRefresh(VaultViewModel viewModel) {
     if (!_pendingSaveRefreshCheck ||
         viewModel.state != VaultAppState.unlocked) {
