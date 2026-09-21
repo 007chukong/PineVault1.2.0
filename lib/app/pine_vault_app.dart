@@ -10,7 +10,10 @@ import '../ui/features/settings/webdav_settings_view_model.dart';
 import '../ui/features/unlock/unlock_screen.dart';
 import '../ui/features/vault/vault_home_screen.dart';
 import '../ui/features/vault/vault_view_model.dart';
+import '../data/services/app_preferences_service.dart';
 import '../ui/core/app_theme.dart';
+import '../ui/core/pine_vault_background_layer.dart';
+import '../ui/features/settings/disclaimer_screen.dart';
 
 class PineVaultApp extends StatefulWidget {
   const PineVaultApp({
@@ -173,17 +176,37 @@ class _PineVaultAppState extends State<PineVaultApp>
             ),
           ),
         ),
+        builder: (context, child) => PineVaultBackgroundLayer(
+          child: child ?? const SizedBox.shrink(),
+        ),
         home: const _AppRouter(),
       ),
     );
   }
 }
 
-class _AppRouter extends StatelessWidget {
+class _AppRouter extends StatefulWidget {
   const _AppRouter();
 
   @override
+  State<_AppRouter> createState() => _AppRouterState();
+}
+
+class _AppRouterState extends State<_AppRouter> {
+  /// 免责声明未确认时，先展示声明页（含随机验证码校验）。
+  bool _disclaimerSatisfied = AppPreferences.instance.disclaimerAccepted;
+
+  @override
   Widget build(BuildContext context) {
+    if (!_disclaimerSatisfied) {
+      return DisclaimerScreen(
+        onAccepted: () {
+          if (mounted) {
+            setState(() => _disclaimerSatisfied = true);
+          }
+        },
+      );
+    }
     return Consumer<VaultViewModel>(
       builder: (context, viewModel, _) {
         return switch (viewModel.state) {

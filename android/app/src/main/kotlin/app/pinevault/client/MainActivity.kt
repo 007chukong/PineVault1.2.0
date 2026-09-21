@@ -35,6 +35,23 @@ class MainActivity : FlutterFragmentActivity() {
                     ).edit().remove(AutofillContract.PENDING_SAVE_REFRESH).apply()
                     result.success(true)
                 }
+                // 1.2.3：把 Dart 侧的排除列表 / 敏感页面开关落到原生，供填充服务读取。
+                "setAutofillGuard" -> {
+                    val excluded = call.argument<List<String>>("excludedPackages") ?: emptyList()
+                    val sensitiveGuard = call.argument<Boolean>("sensitiveGuard") ?: true
+                    getSharedPreferences(
+                        AutofillGuardContract.PREFERENCES,
+                        MODE_PRIVATE,
+                    ).edit()
+                        .putStringSet(
+                            AutofillGuardContract.EXCLUDED_PACKAGES,
+                            excluded.toSet(),
+                        )
+                        .putBoolean(AutofillGuardContract.SENSITIVE_GUARD, sensitiveGuard)
+                        .apply()
+                    result.success(true)
+                }
+
                 "isEnabled" -> result.success(manager?.hasEnabledAutofillServices() == true)
                 "isBackgroundAllowed" -> {
                     val powerManager = getSystemService(PowerManager::class.java)

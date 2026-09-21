@@ -19,7 +19,8 @@ import 'app_theme.dart';
 /// - 四边留白：左右 16、底部 12 + 系统安全区，悬浮在页面内容之上。
 /// - 大圆角：PineVaultRadii.xl（28）。
 /// - 磨砂玻璃：BackdropFilter + ImageFilter.blur(sigma = 18) 轻微模糊下层内容，
-///   底色 mint50 #F3FBF7 叠 72% 不透明度，1px 白色高光描边。
+///   浅色主题底色 mint50 #F3FBF7 叠 76%，深色主题 mint900 #164834 叠 62%，
+///   1px 高光描边（浅色 0.66 / 深色 0.14）。
 /// - 弥散阴影：mint900 低透明度、大 blurRadius、小偏移，淡淡的浮起感。
 /// - 未选中文字 navUnselectedLight #47624F；选中为实心胶囊 mint700 #2C8360 + 白字。
 ///
@@ -84,6 +85,14 @@ class PineVaultBottomNav extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 1.2.3「底栏填色」：任何场景都保持半透明磨砂——只切换玻璃底色，
+    // 不用不透明色兜底。浅色页面用 mint50 玻璃，深色页面用深绿玻璃，
+    // 避免深色界面上出现一条发白的横条。
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+    final Color glassTint = isDark
+        ? const Color(0xFF164834)
+        : PineVaultPalette.mint50;
+    final double glassAlpha = isDark ? 0.62 : 0.76;
     return Padding(
       padding: EdgeInsets.fromLTRB(
         horizontalMargin,
@@ -115,9 +124,11 @@ class PineVaultBottomNav extends StatelessWidget {
             filter: ImageFilter.blur(sigmaX: blurSigma, sigmaY: blurSigma),
             child: DecoratedBox(
               decoration: BoxDecoration(
-                color: PineVaultPalette.mint50.withValues(alpha: 0.72),
+                color: glassTint.withValues(alpha: glassAlpha),
                 borderRadius: barRadius,
-                border: Border.all(color: Colors.white.withValues(alpha: 0.66)),
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: isDark ? 0.14 : 0.66),
+                ),
               ),
               // 透明 Material 只是给 InkResponse 一个绘制水波纹的层，
               // 位置在模糊层之上，不影响毛玻璃观感。
@@ -174,9 +185,14 @@ class _BottomNavItem extends StatelessWidget {
   Widget build(BuildContext context) {
     // 选中态：实心胶囊 + 白字（4.64:1）；
     // 未选中态：无底 + 深绿字（对毛玻璃底 ≥4.5:1）。
-    final foreground = selected
+    // 1.2.3「底栏填色」：选中胶囊取比玻璃底色稍深一点点的主绿，并保留
+    // 极轻微的透明（0.92），让下层模糊仍透得出来，而不是一块死板的实心色块；
+    // 未选中文字在深色页面上换成浅绿，避免深底上出现读不清的墨绿字。
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+    final Color capsule = PineVaultPalette.mint700.withValues(alpha: 0.92);
+    final Color foreground = selected
         ? Colors.white
-        : PineVaultPalette.navUnselectedLight;
+        : (isDark ? const Color(0xFFB9D8C8) : PineVaultPalette.navUnselectedLight);
 
     return InkResponse(
       onTap: onTap,
@@ -189,7 +205,7 @@ class _BottomNavItem extends StatelessWidget {
           curve: Curves.easeOut,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
           decoration: BoxDecoration(
-            color: selected ? PineVaultPalette.mint700 : Colors.transparent,
+            color: selected ? capsule : Colors.transparent,
             borderRadius: BorderRadius.circular(18),
           ),
           child: Column(

@@ -31,6 +31,13 @@ class PineVaultAutofillService : AutofillService() {
             callback.onSuccess(null)
             return
         }
+        // 1.2.3：命中排除列表或敏感页面保护时，直接放弃生成填充建议。
+        val guardPackage = structure.activityComponent.packageName
+        if (AutofillGuardContract.isGuarded(this, guardPackage)) {
+            Log.i(TAG, "request=${request.id} ignored: guarded package $guardPackage")
+            callback.onSuccess(null)
+            return
+        }
         val fields = AutofillStructureParser.parse(structure)
         Log.i(
             TAG,
@@ -101,6 +108,13 @@ class PineVaultAutofillService : AutofillService() {
     override fun onSaveRequest(request: SaveRequest, callback: SaveCallback) {
         val structure = request.fillContexts.lastOrNull()?.structure
         if (structure == null) {
+            callback.onSuccess()
+            return
+        }
+        // 1.2.3：与填充一致，被排除或受保护的应用不提示保存。
+        val guardPackage = structure.activityComponent.packageName
+        if (AutofillGuardContract.isGuarded(this, guardPackage)) {
+            Log.i(TAG, "save ignored: guarded package $guardPackage")
             callback.onSuccess()
             return
         }

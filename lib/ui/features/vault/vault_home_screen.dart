@@ -11,6 +11,7 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../data/models/kdbx_transfer_data.dart';
+import '../../../data/services/app_preferences_service.dart';
 import '../../../data/services/installed_apps_service.dart';
 import '../../../data/services/native_autofill_service.dart';
 import '../../../data/services/totp_service.dart';
@@ -22,6 +23,8 @@ import '../../core/app_feedback.dart';
 import '../../core/app_theme.dart';
 import '../../core/pine_vault_bottom_nav.dart';
 import '../../core/pine_vault_widgets.dart';
+import '../settings/autofill_exclude_screen.dart';
+import '../settings/background_settings_screen.dart';
 import '../settings/change_master_password_dialog.dart';
 import '../settings/device_unlock_sheet.dart';
 import '../settings/sync_history_screen.dart';
@@ -574,6 +577,21 @@ class _VaultHomeScreenState extends State<VaultHomeScreen>
                   _handleMenu(context, _VaultMenuAction.deviceUnlock)
               : null,
         ),
+        // 1.2.3：人脸解锁开关。开启后解锁只认面容/指纹，不再回落到系统密码。
+        _switchTile(
+          icon: Icons.face_retouching_natural_rounded,
+          title: '人脸解锁',
+          subtitle: AppPreferences.instance.faceUnlockEnabled
+              ? '仅使用面容 / 指纹验证'
+              : '已关闭：解锁时可用系统密码兜底',
+          value: AppPreferences.instance.faceUnlockEnabled,
+          onChanged: (value) async {
+            await AppPreferences.instance.setFaceUnlockEnabled(value);
+            if (!mounted) return;
+            setState(() {});
+            showAppMessage(context, value ? '已开启人脸解锁' : '已关闭人脸解锁');
+          },
+        ),
         _navigationTile(
           icon: Icons.password_rounded,
           title: '修改主密码',
@@ -589,6 +607,13 @@ class _VaultHomeScreenState extends State<VaultHomeScreen>
               : '未开启',
           value: _autofillEnabled,
           onChanged: _autofillBusy ? null : (value) => _toggleAutofill(),
+        ),
+        // 1.2.3：读取侧守卫——排除列表 + 敏感页面保护。
+        _navigationTile(
+          icon: Icons.app_blocking_outlined,
+          title: '自动填充排除列表',
+          subtitle: '选择不填充的应用与敏感页面保护',
+          onTap: () => _pushScreen(const AutofillExcludeScreen()),
         ),
         // 1.2.2：「WebDAV 设置 / 同步历史」属于云同步，只在「同步」页出现。
         const PineVaultSectionLabel('数据'),
@@ -623,6 +648,13 @@ class _VaultHomeScreenState extends State<VaultHomeScreen>
           onTap: () => _clearCache(context),
         ),
         const PineVaultSectionLabel('显示与排序'),
+        // 1.2.3：背景设置（图片 / 遮罩 / 模糊）。
+        _navigationTile(
+          icon: Icons.wallpaper_rounded,
+          title: '背景设置',
+          subtitle: '自定义页面背景图片、遮罩与模糊',
+          onTap: () => _pushScreen(const BackgroundSettingsScreen()),
+        ),
         _switchTile(
           icon: Icons.visibility_outlined,
           title: '展示密码',
