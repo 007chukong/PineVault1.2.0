@@ -223,6 +223,7 @@ jobs:
           tag_name: ${{ github.ref_name }}
           name: 松匣 ${{ github.ref_name }}
           generate_release_notes: true
-          prerelease: ${{ contains(github.ref_name, '-') }}
+          # 1.2.4-repair：仅 -beta / -rc 视为预发行，修复版（-repair）等按正式版发布。
+          prerelease: ${{ contains(github.ref_name, '-beta') || contains(github.ref_name, '-rc') }}
           fail_on_unmatched_files: true
           files: release-assets/**/*
