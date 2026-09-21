@@ -5,7 +5,6 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:path_provider/path_provider.dart';
 
-import 'app_preferences_service.dart';
 
 typedef DirectoryProvider = Future<Directory> Function();
 
@@ -203,9 +202,6 @@ class DeviceUnlockService {
     try {
       return await _authentication.authenticate(
         localizedReason: reason,
-        // 1.2.3：设置页开启「人脸解锁」后，只允许生物识别（面容/指纹）通过，
-        // 不再回落到系统密码；关闭时保持原有行为（可用系统密码兜底）。
-        biometricOnly: AppPreferences.instance.faceUnlockEnabled,
         sensitiveTransaction: true,
       );
     } on PlatformException catch (error) {

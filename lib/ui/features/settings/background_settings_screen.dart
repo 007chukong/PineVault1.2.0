@@ -66,9 +66,9 @@ class _BackgroundSettingsScreenState extends State<BackgroundSettingsScreen> {
     final String? path = _prefs.backgroundPath;
     final bool hasImage = path != null && path.isNotEmpty && File(path).existsSync();
     return Scaffold(
-      backgroundColor: _mint50,
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
-        backgroundColor: _mint50,
+        backgroundColor: Colors.transparent,
         elevation: 0,
         foregroundColor: _body,
         title: const Text(

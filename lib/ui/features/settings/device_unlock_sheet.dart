@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../../data/services/app_preferences_service.dart';
 import '../../core/app_feedback.dart';
 import '../vault/vault_view_model.dart';
 
@@ -9,7 +8,6 @@ import '../vault/vault_view_model.dart';
 ///
 /// 视觉口径：
 /// - 顶部细拖拽条保持不变，作为底部弹窗的可识别手势提示。
-/// - 主视觉是居中的圆形图标徽章（开启 = 指纹；已开启人脸解锁 = 面容；
 ///   关闭 = 解除绑定），下方是居中标题与说明文字，两侧留白更大。
 /// - 底部是等宽的「取消 / 确认」按钮组，按钮高度统一、圆角一致。
 class DeviceUnlockSheet extends StatefulWidget {
@@ -27,8 +25,6 @@ class _DeviceUnlockSheetState extends State<DeviceUnlockSheet> {
   bool _obscurePassword = true;
   bool _busy = false;
 
-  /// 是否处于「仅生物识别（人脸解锁）」模式，仅用于文案与图标展示。
-  bool get _faceMode => AppPreferences.instance.faceUnlockEnabled;
 
   @override
   void dispose() {
@@ -183,18 +179,12 @@ class _DeviceUnlockSheetState extends State<DeviceUnlockSheet> {
 
   IconData get _heroIcon {
     if (widget.disable) return Icons.phonelink_erase_rounded;
-    return _faceMode
-        ? Icons.face_retouching_natural_rounded
-        : Icons.fingerprint_rounded;
+    return Icons.fingerprint_rounded;
   }
 
   String get _description {
     if (widget.disable) {
       return '关闭后，本机只能使用主密码解锁。\n其他设备不受影响。';
-    }
-    if (_faceMode) {
-      return '先确认当前主密码，之后解锁只认面容 / 指纹，'
-          '不再回落到系统密码。主密码不会被保存。';
     }
     return '先确认当前主密码，再通过指纹、面容、系统密码或 Windows Hello '
         '完成本机绑定。主密码不会被保存。';

@@ -100,7 +100,6 @@ class _VaultHomeScreenState extends State<VaultHomeScreen>
     // 1.2.2：宽屏与否已不影响 AppBar，局部变量不再需要。
     _scheduleAutomaticBackupCheck(viewModel);
     return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: _buildHomeAppBar(viewModel),
       body: Stack(
         children: [
@@ -198,7 +197,7 @@ class _VaultHomeScreenState extends State<VaultHomeScreen>
       _ => const Text('设置'),
     };
     return AppBar(
-      backgroundColor: scheme.surface,
+      backgroundColor: Colors.transparent,
       scrolledUnderElevation: 0,
       surfaceTintColor: Colors.transparent,
       title: title,
@@ -577,21 +576,6 @@ class _VaultHomeScreenState extends State<VaultHomeScreen>
                   _handleMenu(context, _VaultMenuAction.deviceUnlock)
               : null,
         ),
-        // 1.2.3：人脸解锁开关。开启后解锁只认面容/指纹，不再回落到系统密码。
-        _switchTile(
-          icon: Icons.face_retouching_natural_rounded,
-          title: '人脸解锁',
-          subtitle: AppPreferences.instance.faceUnlockEnabled
-              ? '仅使用面容 / 指纹验证'
-              : '已关闭：解锁时可用系统密码兜底',
-          value: AppPreferences.instance.faceUnlockEnabled,
-          onChanged: (value) async {
-            await AppPreferences.instance.setFaceUnlockEnabled(value);
-            if (!mounted) return;
-            setState(() {});
-            showAppMessage(context, value ? '已开启人脸解锁' : '已关闭人脸解锁');
-          },
-        ),
         _navigationTile(
           icon: Icons.password_rounded,
           title: '修改主密码',
@@ -689,7 +673,7 @@ class _VaultHomeScreenState extends State<VaultHomeScreen>
           child: PineVaultListTile(
             icon: Icons.info_outline_rounded,
             title: '松匣 PineVault',
-            subtitle: '版本 1.2.3',
+            subtitle: '版本 1.2.4（repair）',
           ),
         ),
         _navigationTile(

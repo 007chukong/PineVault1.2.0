@@ -106,9 +106,9 @@ class _AutofillExcludeScreenState extends State<AutofillExcludeScreen> {
   Widget build(BuildContext context) {
     final List<InstalledApp> apps = _filtered;
     return Scaffold(
-      backgroundColor: _mint50,
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
-        backgroundColor: _mint50,
+        backgroundColor: Colors.transparent,
         elevation: 0,
         foregroundColor: _body,
         title: const Text(

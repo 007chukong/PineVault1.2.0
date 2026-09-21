@@ -72,7 +72,7 @@ class _DisclaimerScreenState extends State<DisclaimerScreen> {
   Widget build(BuildContext context) {
     final bool ready = _agreed && _codeMatched;
     return Scaffold(
-      backgroundColor: _mint50,
+      backgroundColor: Colors.transparent,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(

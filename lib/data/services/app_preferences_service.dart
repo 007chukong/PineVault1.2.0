@@ -11,7 +11,7 @@ import 'package:path_provider/path_provider.dart';
 /// 1. 免责声明的接受状态（按声明版本号记录，文案有实质变化时版本号 +1，
 ///    老用户会重新看到声明）；
 /// 2. 自定义背景（图片路径 / 遮罩浓度 / 模糊半径）；
-/// 3. 自动填充排除列表镜像、敏感页面保护、人脸解锁开关。
+/// 3. 自动填充排除列表镜像、敏感页面保护。
 ///
 /// 单例 + 内存缓存：所有 UI 通过 [instance] 读写，写入后立即落盘并
 /// [notifyListeners]，界面用 ListenableBuilder 监听即可。
@@ -32,7 +32,6 @@ class AppPreferences extends ChangeNotifier {
   static const String _kBackgroundBlur = 'backgroundBlur';
   static const String _kExcluded = 'excludedAutofillPackages';
   static const String _kSensitiveGuard = 'sensitivePageGuard';
-  static const String _kFaceUnlock = 'faceUnlockEnabled';
 
   final Map<String, Object?> _data = <String, Object?>{};
   Directory? _supportDirectory;
@@ -211,17 +210,6 @@ class AppPreferences extends ChangeNotifier {
     await _persist();
   }
 
-  // ---------------------------------------------------------------- 人脸解锁
-
-  /// 人脸解锁开关：开启后调用系统验证时只接受生物识别（面容/指纹），
-  /// 不再回退到设备密码。
-  bool get faceUnlockEnabled => _data[_kFaceUnlock] as bool? ?? false;
-
-  Future<void> setFaceUnlockEnabled(bool value) async {
-    _data[_kFaceUnlock] = value;
-    notifyListeners();
-    await _persist();
-  }
 
   // ------------------------------------------------------------------ 落盘
 

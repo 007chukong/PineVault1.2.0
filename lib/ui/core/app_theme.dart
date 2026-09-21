@@ -110,8 +110,9 @@ ThemeData buildPineVaultTheme({
     useMaterial3: true,
     brightness: brightness,
     colorScheme: scheme,
-    scaffoldBackgroundColor:
-        isLight ? PineVaultPalette.surfaceLight : PineVaultPalette.surfaceDark,
+    // 1.2.4-repair：页面底色改由 PineVaultBackgroundLayer 统一绘制，
+    // Scaffold 保持透明，自定义背景图才能像主题皮肤一样铺满各个页面。
+    scaffoldBackgroundColor: Colors.transparent,
     fontFamily: fontFamily,
     splashFactory: InkRipple.splashFactory,
     visualDensity: VisualDensity.standard,

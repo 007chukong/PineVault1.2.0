@@ -8,7 +8,7 @@ import 'data/services/native_autofill_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // 读取本地偏好（免责声明确认状态、背景、自动填充排除列表、人脸解锁开关）。
+  // 读取本地偏好（免责声明确认状态、背景、自动填充排除列表）。
   await AppPreferences.instance.load();
   final dependencies = await AppDependencies.create();
   await dependencies.vaultViewModel.initialize();
