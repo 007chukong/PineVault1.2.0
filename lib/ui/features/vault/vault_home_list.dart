@@ -452,22 +452,11 @@ class _BatchActionBar extends StatelessWidget {
 
   Future<void> _delete(BuildContext context) async {
     final count = viewModel.selectedItemIds.length;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('删除 $count 条记录？'),
-        content: const Text('删除后会自动同步到其他设备。'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('取消'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('删除'),
-          ),
-        ],
-      ),
+    // 1.2.5：批量删除同样二次确认（与单条删除统一图标与文案）。
+    final confirmed = await showPineVaultDeleteConfirmDialog(
+      context,
+      title: '请确认是否删除这 $count 条密码？',
+      message: '此操作将彻底删除选中的 $count 条密码，建议导出备份文件后删除，以防密码遗失/忘记!',
     );
     if (confirmed != true || !context.mounted) return;
     final ok = await viewModel.batchDelete();

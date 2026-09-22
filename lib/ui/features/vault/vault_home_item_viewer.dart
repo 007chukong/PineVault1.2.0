@@ -517,6 +517,9 @@ class _ItemViewerState extends State<_ItemViewer> {
   }
 
   Future<void> _delete() async {
+    // 1.2.5：删除前二次确认，避免误删后无法恢复。
+    final confirmed = await showPineVaultDeleteConfirmDialog(context);
+    if (!mounted || confirmed != true) return;
     setState(() => _busy = true);
     final deleted = await widget.viewModel.deleteItem(widget.item);
     if (!mounted) return;

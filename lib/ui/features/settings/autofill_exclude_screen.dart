@@ -141,8 +141,8 @@ class _AutofillExcludeScreenState extends State<AutofillExcludeScreen> {
                 ),
               ),
               subtitle: const Text(
-                '在微信、QQ、支付宝、云闪付等应用的支付/付款密码页面，'
-                '不再显示自动填充与保存密码提示。',
+                '只在支付、收银、钱包、银行卡、转账这类页面跳过自动填充与保存提示；'
+                '账号登录等普通密码输入不受影响（1.2.5 起按页面细分）。',
                 style: TextStyle(fontSize: 12.5, height: 1.5, color: _muted),
               ),
             ),

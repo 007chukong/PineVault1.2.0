@@ -32,9 +32,20 @@ class PineVaultAutofillService : AutofillService() {
             return
         }
         // 1.2.3：命中排除列表或敏感页面保护时，直接放弃生成填充建议。
-        val guardPackage = structure.activityComponent.packageName
-        if (AutofillGuardContract.isGuarded(this, guardPackage)) {
-            Log.i(TAG, "request=${request.id} ignored: guarded package $guardPackage")
+        // 1.2.5：敏感保护按页面细分，因此把 activity 类名一起传给守卫判断。
+        val guardComponent = structure.activityComponent
+        if (
+            AutofillGuardContract.isGuarded(
+                this,
+                guardComponent.packageName,
+                guardComponent.className,
+            )
+        ) {
+            Log.i(
+                TAG,
+                "request=${request.id} ignored: guarded " +
+                    "${guardComponent.packageName}/${guardComponent.className}",
+            )
             callback.onSuccess(null)
             return
         }
@@ -111,10 +122,21 @@ class PineVaultAutofillService : AutofillService() {
             callback.onSuccess()
             return
         }
-        // 1.2.3：与填充一致，被排除或受保护的应用不提示保存。
-        val guardPackage = structure.activityComponent.packageName
-        if (AutofillGuardContract.isGuarded(this, guardPackage)) {
-            Log.i(TAG, "save ignored: guarded package $guardPackage")
+        // 1.2.3：与填充一致，被排除或受保护的页面不提示保存。
+        // 1.2.5：同样按 activity 细分，只跳过支付类页面。
+        val guardComponent = structure.activityComponent
+        if (
+            AutofillGuardContract.isGuarded(
+                this,
+                guardComponent.packageName,
+                guardComponent.className,
+            )
+        ) {
+            Log.i(
+                TAG,
+                "save ignored: guarded " +
+                    "${guardComponent.packageName}/${guardComponent.className}",
+            )
             callback.onSuccess()
             return
         }

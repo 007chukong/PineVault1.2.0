@@ -519,6 +519,9 @@ class _VaultHomeScreenState extends State<VaultHomeScreen>
                   label: const Text('立即同步'),
                 ),
               ),
+              const SizedBox(height: 14),
+              // 1.2.5：自动同步周期（1 / 3 / 7 天，默认 3 天）。
+              const _AutoSyncIntervalPicker(),
               if (progress != null) ...[
                 const SizedBox(height: 12),
                 const LinearProgressIndicator(),
@@ -671,7 +674,7 @@ class _VaultHomeScreenState extends State<VaultHomeScreen>
           child: PineVaultListTile(
             icon: Icons.info_outline_rounded,
             title: '松匣 PineVault',
-            subtitle: '版本 1.2.4-1',
+            subtitle: '版本 1.2.5',
             onTap: () => _openVersionHistory(context),
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
@@ -946,6 +949,86 @@ class _BottomSwipeArea extends StatelessWidget {
           onSwipeRight();
         }
       },
+    );
+  }
+}
+
+
+/// 1.2.5：「自动同步周期」选择器（1 天 / 3 天 / 7 天，默认 3 天）。
+///
+/// 自动同步不再由「解锁 / 重新登录 / 新增修改密码」触发，只在周期到达后执行；
+/// 「立即同步」按钮不受周期限制。
+class _AutoSyncIntervalPicker extends StatefulWidget {
+  const _AutoSyncIntervalPicker();
+
+  @override
+  State<_AutoSyncIntervalPicker> createState() => _AutoSyncIntervalPickerState();
+}
+
+class _AutoSyncIntervalPickerState extends State<_AutoSyncIntervalPicker> {
+  Future<void> _select(int days) async {
+    if (days == AppPreferences.instance.autoSyncIntervalDays) return;
+    await AppPreferences.instance.setAutoSyncIntervalDays(days);
+    if (mounted) setState(() {});
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ThemeData theme = Theme.of(context);
+    final int current = AppPreferences.instance.autoSyncIntervalDays;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Row(
+          children: <Widget>[
+            Expanded(
+              child: Text(
+                '自动同步周期',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            for (final int days in AppPreferences.autoSyncIntervalOptions)
+              Padding(
+                padding: const EdgeInsets.only(left: 8),
+                child: _option(context, days, days == current),
+              ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        Text(
+          '松匣只在周期到达后与云端同步（默认 3 天）；'
+          '解锁、新增或修改密码时不再立即同步，需要时点「立即同步」。',
+          style: theme.textTheme.bodySmall,
+        ),
+      ],
+    );
+  }
+
+  Widget _option(BuildContext context, int days, bool selected) {
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+    return InkWell(
+      onTap: () => _select(days),
+      borderRadius: BorderRadius.circular(999),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        decoration: BoxDecoration(
+          color: selected ? scheme.primary : Colors.transparent,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(
+            color: selected ? scheme.primary : scheme.outlineVariant,
+          ),
+        ),
+        child: Text(
+          '$days 天',
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: selected ? scheme.onPrimary : scheme.onSurfaceVariant,
+          ),
+        ),
+      ),
     );
   }
 }

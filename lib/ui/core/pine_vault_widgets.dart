@@ -306,3 +306,41 @@ class PineVaultCoolapkBadge extends StatelessWidget {
     );
   }
 }
+
+
+/// 1.2.5：密码删除前的二次确认对话框（密码库所有删除入口统一使用）。
+///
+/// 红色三角感叹号 + 「请确认是否删除？」+ 小字提醒，避免误删后无法找回。
+/// 返回 `true` 表示用户确认删除。
+Future<bool?> showPineVaultDeleteConfirmDialog(
+  BuildContext context, {
+  String title = '请确认是否删除？',
+  String message = '此操作将彻底删除您的密码，建议导出备份文件后删除，以防密码遗失/忘记!',
+  String confirmLabel = '删除',
+  String cancelLabel = '取消',
+}) {
+  return showDialog<bool>(
+    context: context,
+    builder: (BuildContext dialogContext) {
+      return AlertDialog(
+        icon: const Icon(Icons.warning_rounded, size: 40, color: Color(0xFFD93F3F)),
+        title: Text(title, textAlign: TextAlign.center),
+        content: Text(
+          message,
+          style: const TextStyle(fontSize: 12.5, height: 1.6, color: Color(0xFF6B8579)),
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: Text(cancelLabel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            style: FilledButton.styleFrom(backgroundColor: const Color(0xFFD93F3F)),
+            child: Text(confirmLabel),
+          ),
+        ],
+      );
+    },
+  );
+}

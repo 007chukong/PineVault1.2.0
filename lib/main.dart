@@ -25,7 +25,7 @@ Future<void> main() async {
 Future<void> autofillEntryPoint() async {
   WidgetsFlutterBinding.ensureInitialized();
   final request = await NativeAutofillAuth.request();
-  final dependencies = await AppDependencies.create(enableVaultSync: false);
+  final dependencies = await AppDependencies.create(enableVaultSync: true);
   await dependencies.vaultViewModel.initialize();
   runApp(
     AutofillApp(

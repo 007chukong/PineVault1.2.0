@@ -45,6 +45,12 @@ class _VersionEntry {
 /// 历史版本数据（由 tools/gen_version_history.py 依据 CHANGELOG.md 生成）。
 const List<_VersionEntry> _entries = <_VersionEntry>[
   const _VersionEntry(
+    version: '1.2.5',
+    date: '2026-09-22',
+    log: '密码删除新增二次确认：单条删除、批量删除与编辑页删除都会弹出「请确认是否删除？」（红色三角感叹号 + 小字提醒），避免误删后无法找回；使用须知更新：新增开源与免责条款——本工具为开源软件，代码全部由 DeepSeek（人工智能）全程编写，请自行审阅源码与安装包并排查风险；文末提供「前往审查代码」入口（仓库地址蓝色高亮、可直接点击）。声明版本号由 1.0 升到 1.1，老用户会重新确认一次',
+    repoUrl: 'https://github.com/007chukong/PineVault1.2.0/releases/tag/1.2.5',
+  ),
+  const _VersionEntry(
     version: '1.2.4-1',
     date: '2026-09-21',
     log: '新增「历史版本」入口：设置页「关于 → 松匣 PineVault」行右侧，进入后按从新到旧列出历史所有版本、发布日期、简短更新日志，以及该版本对应的 GitHub 仓库（Release）地址，点击直接用浏览器打开；新增 `tools/gen_version_history.py`：按 CHANGELOG.md 自动生成历史版本列表，下次更新无需手写',
@@ -100,6 +106,9 @@ class VersionHistoryScreen extends StatelessWidget {
   /// 仓库主页（页面底部展示，点击跳转）。
   static const String _repoHome = 'https://github.com/007chukong/PineVault1.2.0';
 
+  /// 1.2.5：仓库链接统一使用的蓝色高亮色。
+  static const Color _linkColor = Color(0xFF1A73E8);
+
   @override
   Widget build(BuildContext context) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
@@ -126,13 +135,13 @@ class VersionHistoryScreen extends StatelessWidget {
     );
   }
 
+  /// 1.2.5：卡片不再整行可点击，只有右下角的仓库链接（蓝色高亮）可以跳转。
   Widget _versionCard(BuildContext context, _VersionEntry entry) {
     final ThemeData theme = Theme.of(context);
     final ColorScheme scheme = theme.colorScheme;
     return PineVaultSurface(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(16),
-      onTap: () => _open(context, entry.repoUrl),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
@@ -155,29 +164,47 @@ class VersionHistoryScreen extends StatelessWidget {
           const SizedBox(height: 6),
           Text(
             entry.log,
-            maxLines: 3,
-            overflow: TextOverflow.ellipsis,
             style: TextStyle(
               fontSize: 13,
-              height: 1.45,
+              height: 1.5,
               color: scheme.onSurfaceVariant,
             ),
           ),
-          const SizedBox(height: 8),
-          Row(
-            children: <Widget>[
-              Icon(Icons.link_rounded, size: 15, color: scheme.primary),
-              const SizedBox(width: 5),
-              Expanded(
-                child: Text(
-                  'GitHub 仓库 · ${entry.repoUrl}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 12, color: scheme.primary),
+          const SizedBox(height: 10),
+          Align(
+            alignment: Alignment.centerRight,
+            child: InkWell(
+              // 仅此处响应点击（其余位置不跳转）。
+              onTap: () => _open(context, entry.repoUrl),
+              borderRadius: BorderRadius.circular(8),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    Flexible(
+                      child: Text(
+                        '查看该版本仓库：${entry.repoUrl}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          height: 1.35,
+                          color: _linkColor,
+                          decoration: TextDecoration.underline,
+                          decorationColor: _linkColor,
+                        ),
+                      ),
+                    ),
+                    const Icon(
+                      Icons.chevron_right_rounded,
+                      size: 18,
+                      color: _linkColor,
+                    ),
+                  ],
                 ),
               ),
-              Icon(Icons.chevron_right_rounded, size: 18, color: scheme.primary),
-            ],
+            ),
           ),
         ],
       ),
@@ -203,7 +230,12 @@ class VersionHistoryScreen extends StatelessWidget {
                   _repoHome,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: _linkColor,
+                    decoration: TextDecoration.underline,
+                    decorationColor: _linkColor,
+                  ),
                 ),
               ],
             ),

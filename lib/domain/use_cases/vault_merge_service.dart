@@ -81,7 +81,12 @@ class VaultMergeService {
                 revision: item.revision + 1,
               ),
     ];
-    normalizedItems.sort((a, b) => a.id.compareTo(b.id));
+    // 1.2.5：没有共同祖先（首次同步 / 同步状态丢失）时，本机与云端可能存在
+    /// 「同一份密码、不同 id」的条目；这里按内容去重，避免同步后多出一条一样的记录。
+    final dedupedItems = base == null
+        ? _dedupeByContent(normalizedItems)
+        : normalizedItems;
+    dedupedItems.sort((a, b) => a.id.compareTo(b.id));
     final sortedTombstones = tombstones.toList()..sort();
     final groupTombstones = {
       ...local.groupTombstones,
@@ -93,7 +98,7 @@ class VaultMergeService {
         schemaVersion: local.schemaVersion,
         createdAt: local.createdAt,
         updatedAt: DateTime.now().toUtc(),
-        items: List.unmodifiable(normalizedItems),
+        items: List.unmodifiable(dedupedItems),
         tombstones: List.unmodifiable(sortedTombstones),
         groups: List.unmodifiable(groups),
         groupTombstones: List.unmodifiable(groupTombstones),
@@ -106,6 +111,34 @@ class VaultMergeService {
           remote.webDavCredentials != null &&
           !_sameWebDav(local, remote),
     );
+  }
+
+  /// 1.2.5：按「内容」去重（忽略 id / 分组 / 时间戳 / 版本号 / 收藏与标签）。
+  ///
+  /// 保留先出现的那一条（即本机已有记录），这样用户的收藏、分组等本地信息不会被覆盖。
+  List<VaultItem> _dedupeByContent(List<VaultItem> input) {
+    final seen = <String>{};
+    final output = <VaultItem>[];
+    for (final item in input) {
+      if (seen.add(_contentKey(item))) output.add(item);
+    }
+    return output;
+  }
+
+  String _contentKey(VaultItem item) {
+    final json = Map<String, Object?>.from(item.toJson());
+    for (final key in const <String>[
+      'id',
+      'groupId',
+      'createdAt',
+      'updatedAt',
+      'revision',
+      'favorite',
+      'tags',
+    ]) {
+      json.remove(key);
+    }
+    return jsonEncode(json);
   }
 
   bool _sameWebDav(Vault left, Vault right) {

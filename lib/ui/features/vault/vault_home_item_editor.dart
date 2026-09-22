@@ -551,6 +551,9 @@ class _ItemEditorDialogState extends State<_ItemEditorDialog> {
   Future<void> _delete() async {
     final item = widget.item;
     if (item == null) return;
+    // 1.2.5：编辑页删除同样二次确认。
+    final confirmed = await showPineVaultDeleteConfirmDialog(context);
+    if (!mounted || confirmed != true) return;
     setState(() => _busy = true);
     final deleted = await widget.viewModel.deleteItem(item);
     if (!mounted) return;

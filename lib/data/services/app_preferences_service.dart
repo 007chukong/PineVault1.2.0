@@ -23,7 +23,8 @@ class AppPreferences extends ChangeNotifier {
   static const String _fileName = 'app_preferences.json';
 
   /// 免责声明版本：文案有实质变化时递增。
-  static const String disclaimerVersion = '1.0';
+  /// 1.2.5：新增开源/DeepSeek 免责条款，声明版本 1.0 -> 1.1，老用户需重新确认。
+  static const String disclaimerVersion = '1.1';
 
   static const String _kDisclaimer = 'disclaimerVersion';
   static const String _kBackgroundPath = 'backgroundPath';
@@ -32,6 +33,8 @@ class AppPreferences extends ChangeNotifier {
   static const String _kBackgroundBlur = 'backgroundBlur';
   static const String _kExcluded = 'excludedAutofillPackages';
   static const String _kSensitiveGuard = 'sensitivePageGuard';
+  static const String _kSyncIntervalDays = 'autoSyncIntervalDays';
+  static const String _kLastSyncedAt = 'lastSyncedAtMillis';
 
   final Map<String, Object?> _data = <String, Object?>{};
   Directory? _supportDirectory;
@@ -210,6 +213,51 @@ class AppPreferences extends ChangeNotifier {
     await _persist();
   }
 
+
+  // -------------------------------------------------------------- 自动同步
+  /// 自动同步周期候选（天）：用户在「同步」页三选一。
+  static const List<int> autoSyncIntervalOptions = <int>[1, 3, 7];
+
+  /// 自动同步周期（天），默认 3 天。
+  int get autoSyncIntervalDays {
+    final raw = _data[_kSyncIntervalDays];
+    if (raw is num) {
+      final days = raw.toInt();
+      if (autoSyncIntervalOptions.contains(days)) return days;
+    }
+    return 3;
+  }
+
+  Future<void> setAutoSyncIntervalDays(int days) async {
+    if (!autoSyncIntervalOptions.contains(days)) return;
+    _data[_kSyncIntervalDays] = days;
+    notifyListeners();
+    await _persist();
+  }
+
+  /// 上一次同步成功的时间；从未同步过时为 null。
+  DateTime? get lastSyncedAt {
+    final raw = _data[_kLastSyncedAt];
+    if (raw is num) {
+      return DateTime.fromMillisecondsSinceEpoch(raw.toInt());
+    }
+    return null;
+  }
+
+  /// 1.2.5：距上一次同步是否已满一个周期（从未同步过视为已到期）。
+  bool get autoSyncDue {
+    final last = lastSyncedAt;
+    if (last == null) return true;
+    return DateTime.now().difference(last).inDays >=
+        autoSyncIntervalDays;
+  }
+
+  /// 记录一次同步成功（作为周期计时起点）。
+  Future<void> markSyncedAt(DateTime time) async {
+    _data[_kLastSyncedAt] = time.millisecondsSinceEpoch;
+    notifyListeners();
+    await _persist();
+  }
 
   // ------------------------------------------------------------------ 落盘
 

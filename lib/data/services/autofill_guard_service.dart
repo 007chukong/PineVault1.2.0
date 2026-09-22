@@ -16,14 +16,12 @@ class AutofillGuardService {
   static bool get isSupported =>
       !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
 
-  /// 内置的「敏感页面」包名：金融/支付类应用一律不弹填充与保存提示。
+  /// 内置的「整包保护」应用：均为金融/系统类工具，不存在普通密码输入场景。
   ///
-  /// 与 Kotlin 侧 `AutofillGuard.sensitivePackages` 保持一致；此处仅用于在
-  /// 界面上告诉用户哪些应用被自动保护。
+  /// 1.2.5：与 Kotlin 侧 `AutofillGuardContract.SENSITIVE_PACKAGES` 保持一致。
+  /// 微信、QQ、支付宝等应用不再整包屏蔽，改为按 activity 判断支付类页面
+  /// （见 Kotlin 侧 `PAYMENT_ACTIVITY_KEYWORDS`），因此这里的列表只剩这几项。
   static const List<String> knownSensitivePackages = <String>[
-    'com.tencent.mm',
-    'com.tencent.mobileqq',
-    'com.eg.android.AlipayGphone',
     'com.unionpay',
     'com.unionpay.tsmservice',
     'com.chinamworld.main',
@@ -31,6 +29,13 @@ class AutofillGuardService {
     'com.ccb.longjiLife',
     'cmb.pb',
     'com.android.settings',
+  ];
+
+  /// 1.2.5：内置的支付类页面关键词（小写匹配），与 Kotlin 侧保持一致，仅用于界面说明。
+  static const List<String> paymentActivityKeywords = <String>[
+    'pay', 'cashier', 'checkout', 'wallet', 'tenpay', 'unionpay',
+    'bank', 'remittance', 'transfer', 'withdraw', 'recharge',
+    'balance', 'billing', 'fund', 'finance', 'quickpass',
   ];
 
   /// 让原生端与 Dart 侧设置保持一致。非 Android 平台或旧版本原生端静默跳过。

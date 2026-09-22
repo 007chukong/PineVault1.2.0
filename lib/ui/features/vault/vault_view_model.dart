@@ -7,6 +7,7 @@ import '../../../data/models/kdbx_transfer_data.dart';
 import '../../../data/repositories/vault_repository.dart';
 import '../../../data/services/kdbx_transfer_service.dart';
 import '../../../data/services/device_unlock_service.dart';
+import '../../../data/services/app_preferences_service.dart';
 import '../../../data/services/sync_history_service.dart';
 import '../../../domain/models/vault_item.dart';
 import '../../../domain/models/totp_config.dart';
@@ -207,10 +208,8 @@ class VaultViewModel extends ChangeNotifier {
     if (succeeded) {
       _automaticDeviceUnlock = true;
       if (_enableVaultSync) {
+        // 1.2.5：解锁（含重新登录）不再立即同步，自动同步只按「自动同步周期」执行。
         _startPeriodicSync();
-        unawaited(
-          _performSync(trigger: '解锁自动同步', quietIfUnconfigured: true),
-        );
       }
     }
   }
@@ -232,10 +231,8 @@ class VaultViewModel extends ChangeNotifier {
       _automaticDeviceUnlock = true;
       notifyListeners();
       if (_enableVaultSync) {
+        // 1.2.5：解锁（含重新登录）不再立即同步，自动同步只按「自动同步周期」执行。
         _startPeriodicSync();
-        unawaited(
-          _performSync(trigger: '解锁自动同步', quietIfUnconfigured: true),
-        );
       }
     } catch (error) {
       _state = VaultAppState.locked;
@@ -251,7 +248,6 @@ class VaultViewModel extends ChangeNotifier {
     try {
       await _repository.reloadUnlocked();
       notifyListeners();
-      _scheduleSync('自动填充保存后同步');
       return true;
     } catch (error) {
       _errorMessage = _readableError(error);
@@ -364,7 +360,6 @@ class VaultViewModel extends ChangeNotifier {
         favorite: favorite,
       ),
     );
-    if (succeeded) _scheduleSync('内容变更自动同步');
     return succeeded;
   }
 
@@ -374,7 +369,6 @@ class VaultViewModel extends ChangeNotifier {
       fallbackState: VaultAppState.unlocked,
       operation: () => _repository.delete(item),
     );
-    if (succeeded) _scheduleSync('内容变更自动同步');
     return succeeded;
   }
 
@@ -401,7 +395,6 @@ class VaultViewModel extends ChangeNotifier {
       if (_isSessionActive(sessionVersion)) {
         _state = VaultAppState.unlocked;
         notifyListeners();
-        if (hadPendingSync) _scheduleSync('延迟自动同步');
       }
     }
   }
@@ -461,6 +454,8 @@ class VaultViewModel extends ChangeNotifier {
         _syncMessage = '主密码已在其他设备修改，下次解锁请输入最新主密码';
       }
       await _recordHistory(trigger, true, _syncMessage!);
+      // 1.2.5：记录本次同步时间，「自动同步周期」据此判断是否到期。
+      await AppPreferences.instance.markSyncedAt(DateTime.now());
       if (sessionVersion != _sessionVersion || _repository.vault == null) {
         return false;
       }
@@ -565,7 +560,6 @@ class VaultViewModel extends ChangeNotifier {
     );
     if (succeeded) {
       exitSelectionMode();
-      _scheduleSync('批量删除后自动同步');
     }
     return succeeded;
   }
@@ -580,7 +574,6 @@ class VaultViewModel extends ChangeNotifier {
     );
     if (succeeded) {
       exitSelectionMode();
-      _scheduleSync('批量收藏变更后自动同步');
     }
     return succeeded;
   }
@@ -595,7 +588,6 @@ class VaultViewModel extends ChangeNotifier {
     );
     if (succeeded) {
       exitSelectionMode();
-      _scheduleSync('批量移动分组后自动同步');
     }
     return succeeded;
   }
@@ -606,7 +598,6 @@ class VaultViewModel extends ChangeNotifier {
       fallbackState: VaultAppState.unlocked,
       operation: () => _repository.createGroup(name),
     );
-    if (succeeded) _scheduleSync('分组变更自动同步');
     return succeeded;
   }
 
@@ -616,7 +607,6 @@ class VaultViewModel extends ChangeNotifier {
       fallbackState: VaultAppState.unlocked,
       operation: () => _repository.renameGroup(groupId, name),
     );
-    if (succeeded) _scheduleSync('分组重命名后自动同步');
     return succeeded;
   }
 
@@ -628,7 +618,6 @@ class VaultViewModel extends ChangeNotifier {
     );
     if (succeeded) {
       if (_selectedGroupId == groupId) _selectedGroupId = 'all';
-      _scheduleSync('分组删除后自动同步');
     }
     return succeeded;
   }
@@ -640,7 +629,6 @@ class VaultViewModel extends ChangeNotifier {
       fallbackState: VaultAppState.unlocked,
       operation: () => _repository.reorderGroups(oldIndex, newIndex),
     );
-    if (succeeded) _scheduleSync('分组排序后自动同步');
     return succeeded;
   }
 
@@ -695,7 +683,6 @@ class VaultViewModel extends ChangeNotifier {
       if (!_isSessionActive(sessionVersion)) return null;
       _state = VaultAppState.unlocked;
       notifyListeners();
-      if (summary.itemCount > 0) _scheduleSync('KDBX 导入后自动同步');
       return summary;
     } catch (error) {
       if (!_isSessionActive(sessionVersion)) return null;
@@ -750,12 +737,20 @@ class VaultViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// 1.2.5：自动同步改为「按周期」触发，周期由用户在「同步」页选择
+  /// （1 天 / 3 天 / 7 天，默认 3 天，见 [AppPreferences.autoSyncIntervalDays]）。
+  ///
+  /// 这里每 30 分钟醒一次，只判断「距上次同步是否已满一个周期」，
+  /// 因此不会像 1.2.4 那样每 5 分钟就与云端通信一次；
+  /// 手动「立即同步」不受周期限制。
   void _startPeriodicSync() {
     _periodicSyncTimer?.cancel();
-    _periodicSyncTimer = Timer.periodic(const Duration(minutes: 5), (_) {
-      if (_state == VaultAppState.unlocked) {
-        unawaited(_performSync(trigger: '定时自动同步', quietIfUnconfigured: true));
-      }
+    _periodicSyncTimer = Timer.periodic(const Duration(minutes: 30), (_) {
+      if (_state != VaultAppState.unlocked || _syncRunning) return;
+      if (!AppPreferences.instance.autoSyncDue) return;
+      unawaited(
+        _performSync(trigger: '周期自动同步', quietIfUnconfigured: true),
+      );
     });
   }
 
