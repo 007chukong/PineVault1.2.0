@@ -24,7 +24,7 @@ class AppPreferences extends ChangeNotifier {
 
   /// 免责声明版本：文案有实质变化时递增。
   /// 1.2.5：新增开源/DeepSeek 免责条款，声明版本 1.0 -> 1.1，老用户需重新确认。
-  static const String disclaimerVersion = '1.1';
+  static const String disclaimerVersion = '1.2';
 
   static const String _kDisclaimer = 'disclaimerVersion';
   static const String _kBackgroundPath = 'backgroundPath';
@@ -35,6 +35,9 @@ class AppPreferences extends ChangeNotifier {
   static const String _kSensitiveGuard = 'sensitivePageGuard';
   static const String _kSyncIntervalDays = 'autoSyncIntervalDays';
   static const String _kLastSyncedAt = 'lastSyncedAtMillis';
+
+  /// 1.2.6：最后一次输入主密码的时间（设备验证解锁不计入）。
+  static const String _kLastMasterPasswordAt = 'lastMasterPasswordAtMillis';
 
   final Map<String, Object?> _data = <String, Object?>{};
   Directory? _supportDirectory;
@@ -255,6 +258,54 @@ class AppPreferences extends ChangeNotifier {
   /// 记录一次同步成功（作为周期计时起点）。
   Future<void> markSyncedAt(DateTime time) async {
     _data[_kLastSyncedAt] = time.millisecondsSinceEpoch;
+    notifyListeners();
+    await _persist();
+  }
+
+  // ------------------------------------------------------------ 主密码有效期
+
+  /// 1.2.6：主密码有效天数——距上次输入主密码满 5 天后必须重新输入主密码，
+  /// 不再允许用设备验证解锁。
+  static const int masterPasswordDeadlineDays = 5;
+
+  /// 1.2.6：从第 4 天开始提醒（满 4 天但未满 5 天）。
+  static const int masterPasswordReminderDays = 4;
+
+  /// 上一次输入主密码的时间；设备验证解锁不计入，从未记录过时为 null。
+  DateTime? get lastMasterPasswordAt {
+    final raw = _data[_kLastMasterPasswordAt];
+    if (raw is num) {
+      return DateTime.fromMillisecondsSinceEpoch(raw.toInt());
+    }
+    return null;
+  }
+
+  /// 距上次输入主密码的天数；从未记录过时为 null。
+  int? get daysSinceMasterPassword {
+    final last = lastMasterPasswordAt;
+    if (last == null) return null;
+    return DateTime.now().difference(last).inDays;
+  }
+
+  /// 1.2.6：是否必须用主密码解锁（满 [masterPasswordDeadlineDays] 天）。
+  /// 从未记录过时（升级上来的老用户、首次使用）不强制，输入一次后开始计时。
+  bool get masterPasswordRequired {
+    final days = daysSinceMasterPassword;
+    if (days == null) return false;
+    return days >= masterPasswordDeadlineDays;
+  }
+
+  /// 1.2.6：是否到了提醒天数（满 4 天、未满 5 天时提醒）。
+  bool get masterPasswordReminderDue {
+    final days = daysSinceMasterPassword;
+    if (days == null) return false;
+    return days >= masterPasswordReminderDays &&
+        days < masterPasswordDeadlineDays;
+  }
+
+  /// 记录一次「输入了主密码」（创建密码库 / 主密码解锁成功时调用）。
+  Future<void> markMasterPasswordAt(DateTime time) async {
+    _data[_kLastMasterPasswordAt] = time.millisecondsSinceEpoch;
     notifyListeners();
     await _persist();
   }

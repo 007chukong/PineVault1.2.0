@@ -456,10 +456,10 @@ class _BatchActionBar extends StatelessWidget {
     final confirmed = await showPineVaultDeleteConfirmDialog(
       context,
       title: '请确认是否删除这 $count 条密码？',
-      message: '此操作将彻底删除选中的 $count 条密码，建议导出备份文件后删除，以防密码遗失/忘记!',
+      message: '删除后这 $count 条密码会移入回收站，可在「设置 → 回收站」中找回，30 天后自动清理。',
     );
     if (confirmed != true || !context.mounted) return;
     final ok = await viewModel.batchDelete();
-    if (context.mounted && ok) _showMessage(context, '已删除 $count 条记录');
+    if (context.mounted && ok) _showMessage(context, '已移入回收站 $count 条记录');
   }
 }

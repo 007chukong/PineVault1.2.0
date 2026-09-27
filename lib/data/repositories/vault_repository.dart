@@ -5,6 +5,7 @@ import 'package:uuid/uuid.dart';
 
 import '../../domain/models/vault.dart';
 import '../../domain/models/vault_item.dart';
+import '../../domain/models/trashed_vault_item.dart';
 import '../../domain/models/totp_config.dart';
 import '../../domain/models/vault_group.dart';
 import '../../domain/models/webdav_configuration.dart';
@@ -510,15 +511,17 @@ class VaultRepository {
 
   Future<void> delete(VaultItem item) async {
     final vault = _requireVault();
+    final now = DateTime.now().toUtc();
     final items = vault.items
         .where((candidate) => candidate.id != item.id)
         .toList(growable: false);
     final tombstones = {...vault.tombstones, item.id}.toList(growable: false);
     await _save(
       vault.copyWith(
-        updatedAt: DateTime.now().toUtc(),
+        updatedAt: now,
         items: items,
         tombstones: tombstones,
+        trashedItems: _withTrashed(vault, [item], now),
       ),
     );
   }
@@ -528,14 +531,97 @@ class VaultRepository {
     if (selected.isEmpty) return;
     final vault = _requireVault();
     final now = DateTime.now().toUtc();
+    final removed = vault.items
+        .where((item) => selected.contains(item.id))
+        .toList(growable: false);
     final items = vault.items.where((item) => !selected.contains(item.id));
     await _save(
       vault.copyWith(
         updatedAt: now,
         items: items.toList(growable: false),
         tombstones: {...vault.tombstones, ...selected}.toList(growable: false),
+        trashedItems: _withTrashed(vault, removed, now),
       ),
     );
+  }
+
+  Future<void> restoreTrashedItem(String itemId) async {
+    final vault = _requireVault();
+    final entry = _findTrashed(vault, itemId);
+    if (entry == null) return;
+    final now = DateTime.now().toUtc();
+    final items = [
+      ...vault.items.where((candidate) => candidate.id != itemId),
+      entry.item.copyWith(updatedAt: now, revision: entry.item.revision + 1),
+    ];
+    final tombstones = vault.tombstones
+        .where((candidate) => candidate != itemId)
+        .toList(growable: false);
+    await _save(
+      vault.copyWith(
+        updatedAt: now,
+        items: items.toList(growable: false),
+        tombstones: tombstones,
+        trashedItems: vault.trashedItems
+            .where((candidate) => candidate.item.id != itemId)
+            .toList(growable: false),
+      ),
+    );
+  }
+
+  Future<void> purgeTrashedItem(String itemId) async {
+    final vault = _requireVault();
+    if (_findTrashed(vault, itemId) == null) return;
+    await _save(
+      vault.copyWith(
+        updatedAt: DateTime.now().toUtc(),
+        trashedItems: vault.trashedItems
+            .where((candidate) => candidate.item.id != itemId)
+            .toList(growable: false),
+      ),
+    );
+  }
+
+  Future<int> purgeExpiredTrashedItems() async {
+    final vault = _requireVault();
+    final now = DateTime.now().toUtc();
+    final expired = vault.trashedItems
+        .where((candidate) => candidate.isExpiredAt(now))
+        .toList(growable: false);
+    if (expired.isEmpty) return 0;
+    final expiredIds = {for (final entry in expired) entry.item.id};
+    await _save(
+      vault.copyWith(
+        updatedAt: now,
+        trashedItems: vault.trashedItems
+            .where((candidate) => !expiredIds.contains(candidate.item.id))
+            .toList(growable: false),
+      ),
+    );
+    return expired.length;
+  }
+
+  List<TrashedVaultItem> _withTrashed(
+    Vault vault,
+    List<VaultItem> removed,
+    DateTime now,
+  ) {
+    if (removed.isEmpty) return vault.trashedItems;
+    final removedIds = {for (final item in removed) item.id};
+    final kept = vault.trashedItems
+        .where((entry) => !removedIds.contains(entry.item.id))
+        .toList(growable: false);
+    return [
+      ...kept,
+      for (final item in removed) TrashedVaultItem(item: item, deletedAt: now),
+    ];
+  }
+
+  TrashedVaultItem? _findTrashed(Vault vault, String itemId) {
+    for (final entry in vault.trashedItems) {
+      if (entry.item.id == itemId) return entry;
+    }
+    return null;
   }
 
   Future<void> updateItems(

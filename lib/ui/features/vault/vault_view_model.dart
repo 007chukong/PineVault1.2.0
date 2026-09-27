@@ -12,6 +12,7 @@ import '../../../data/services/sync_history_service.dart';
 import '../../../domain/models/vault_item.dart';
 import '../../../domain/models/totp_config.dart';
 import '../../../domain/models/vault_group.dart';
+import '../../../domain/models/trashed_vault_item.dart';
 import '../../../domain/use_cases/sync_vault_use_case.dart';
 import '../../../domain/use_cases/restore_vault_use_case.dart';
 
@@ -81,6 +82,9 @@ class VaultViewModel extends ChangeNotifier {
 
   VaultAppState get state => _state;
   String? get errorMessage => _errorMessage;
+
+  /// 1.2.6：当前密码库 ID，用于在「存储路径」页展示真实文件名。
+  String? get vaultId => _repository.currentVaultId;
   String? get syncMessage => _syncMessage;
   String? get syncProgress => _syncProgress;
   bool get webDavConflict => _webDavConflict;
@@ -94,6 +98,10 @@ class VaultViewModel extends ChangeNotifier {
   VaultSortOrder get sortOrder => _sortOrder;
   bool get sortReversed => _sortReversed;
   List<VaultGroup> get groups => _repository.vault?.groups ?? const [];
+
+  List<TrashedVaultItem> get trashedItems => List.unmodifiable(
+    _repository.vault?.trashedItems ?? const <TrashedVaultItem>[],
+  );
   int itemCountForGroup(String groupId) =>
       _repository.vault?.items.where((item) {
         if (groupId == totpGroupId) return item.totp != null;
@@ -196,7 +204,10 @@ class VaultViewModel extends ChangeNotifier {
       fallbackState: VaultAppState.noVault,
       operation: () => _repository.create(masterPassword),
     );
-    if (succeeded) _startPeriodicSync();
+    if (succeeded) {
+      await AppPreferences.instance.markMasterPasswordAt(DateTime.now());
+      _startPeriodicSync();
+    }
   }
 
   Future<void> unlock(String masterPassword) async {
@@ -206,6 +217,8 @@ class VaultViewModel extends ChangeNotifier {
       operation: () => _repository.unlock(masterPassword),
     );
     if (succeeded) {
+      // 1.2.6：记录主密码输入时间，用于 5 天有效期判定。
+      await AppPreferences.instance.markMasterPasswordAt(DateTime.now());
       _automaticDeviceUnlock = true;
       if (_enableVaultSync) {
         // 1.2.5：解锁（含重新登录）不再立即同步，自动同步只按「自动同步周期」执行。
@@ -368,6 +381,35 @@ class VaultViewModel extends ChangeNotifier {
       busyState: VaultAppState.saving,
       fallbackState: VaultAppState.unlocked,
       operation: () => _repository.delete(item),
+    );
+    return succeeded;
+  }
+
+  Future<bool> restoreTrashedItem(String itemId) async {
+    final succeeded = await _runBusy(
+      busyState: VaultAppState.saving,
+      fallbackState: VaultAppState.unlocked,
+      operation: () => _repository.restoreTrashedItem(itemId),
+    );
+    return succeeded;
+  }
+
+  Future<bool> purgeTrashedItem(String itemId) async {
+    final succeeded = await _runBusy(
+      busyState: VaultAppState.saving,
+      fallbackState: VaultAppState.unlocked,
+      operation: () => _repository.purgeTrashedItem(itemId),
+    );
+    return succeeded;
+  }
+
+  Future<bool> purgeExpiredTrashedItems() async {
+    final succeeded = await _runBusy(
+      busyState: VaultAppState.saving,
+      fallbackState: VaultAppState.unlocked,
+      operation: () async {
+        await _repository.purgeExpiredTrashedItems();
+      },
     );
     return succeeded;
   }

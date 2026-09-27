@@ -27,6 +27,8 @@ import '../settings/autofill_exclude_screen.dart';
 import '../settings/change_master_password_dialog.dart';
 import '../settings/device_unlock_sheet.dart';
 import '../settings/sync_history_screen.dart';
+import '../settings/storage_paths_screen.dart';
+import '../settings/trash_screen.dart';
 import '../settings/webdav_settings_screen.dart';
 import '../backup/backup_screen.dart';
 import '../backup/backup_view_model.dart';
@@ -617,15 +619,27 @@ class _VaultHomeScreenState extends State<VaultHomeScreen>
           onTap: () => _showGroupManagement(context, viewModel),
         ),
         _navigationTile(
+          icon: Icons.delete_outline_rounded,
+          title: '回收站',
+          subtitle: '找回或彻底删除最近删除的条目',
+          onTap: () => _pushScreen(const TrashScreen()),
+        ),
+        _navigationTile(
+          icon: Icons.folder_open_outlined,
+          title: '存储路径',
+          subtitle: '查看密码库、备份与云端文件的实际位置',
+          onTap: () => _pushScreen(const StoragePathsScreen()),
+        ),
+        _navigationTile(
           icon: Icons.file_download_outlined,
           title: '导入 KDBX',
-          subtitle: '从 KeePass 文件导入条目',
+          subtitle: '从 KDBX 文件导入条目',
           onTap: viewModel.busy ? null : () => _importKdbx(context, viewModel),
         ),
         _navigationTile(
           icon: Icons.file_upload_outlined,
           title: '导出 KDBX',
-          subtitle: '导出为 KeePass 兼容文件',
+          subtitle: '导出为 KDBX 文件',
           onTap: viewModel.busy ? null : () => _exportKdbx(context, viewModel),
         ),
         _navigationTile(
@@ -674,7 +688,7 @@ class _VaultHomeScreenState extends State<VaultHomeScreen>
           child: PineVaultListTile(
             icon: Icons.info_outline_rounded,
             title: '松匣 PineVault',
-            subtitle: '版本 1.2.5',
+            subtitle: '版本 1.2.6',
             onTap: () => _openVersionHistory(context),
             trailing: Row(
               mainAxisSize: MainAxisSize.min,

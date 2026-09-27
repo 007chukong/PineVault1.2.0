@@ -1,3 +1,4 @@
+import 'trashed_vault_item.dart';
 import 'vault_item.dart';
 import 'vault_group.dart';
 import 'webdav_configuration.dart';
@@ -11,6 +12,7 @@ class Vault {
     required this.items,
     this.groups = const [],
     required this.tombstones,
+    this.trashedItems = const [],
     this.groupTombstones = const [],
     this.groupOrderUpdatedAt,
     this.webDavCredentials,
@@ -23,6 +25,7 @@ class Vault {
   final List<VaultItem> items;
   final List<VaultGroup> groups;
   final List<String> tombstones;
+  final List<TrashedVaultItem> trashedItems;
   final List<String> groupTombstones;
   final DateTime? groupOrderUpdatedAt;
   final WebDavCredentials? webDavCredentials;
@@ -61,6 +64,7 @@ class Vault {
       tombstones: List.unmodifiable(
         (json['tombstones'] as List<dynamic>).cast<String>(),
       ),
+      trashedItems: List.unmodifiable(_trashedItems(json['trashedItems'])),
       groupTombstones: List.unmodifiable(
         (json['groupTombstones'] as List<dynamic>? ?? const []).cast<String>(),
       ),
@@ -79,6 +83,9 @@ class Vault {
     'items': items.map((item) => item.toJson()).toList(growable: false),
     'groups': groups.map((group) => group.toJson()).toList(growable: false),
     'tombstones': tombstones,
+    'trashedItems': trashedItems
+        .map((entry) => entry.toJson())
+        .toList(growable: false),
     'groupTombstones': groupTombstones,
     if (groupOrderUpdatedAt case final value?)
       'groupOrderUpdatedAt': value.toUtc().toIso8601String(),
@@ -95,6 +102,7 @@ class Vault {
     List<VaultItem>? items,
     List<VaultGroup>? groups,
     List<String>? tombstones,
+    List<TrashedVaultItem>? trashedItems,
     List<String>? groupTombstones,
     DateTime? groupOrderUpdatedAt,
     WebDavCredentials? webDavCredentials,
@@ -108,6 +116,7 @@ class Vault {
       items: List.unmodifiable(items ?? this.items),
       groups: List.unmodifiable(groups ?? this.groups),
       tombstones: List.unmodifiable(tombstones ?? this.tombstones),
+      trashedItems: List.unmodifiable(trashedItems ?? this.trashedItems),
       groupTombstones: List.unmodifiable(
         groupTombstones ?? this.groupTombstones,
       ),
@@ -116,6 +125,21 @@ class Vault {
           ? null
           : webDavCredentials ?? this.webDavCredentials,
     );
+  }
+
+  /// 1.2.6：容错解析回收站条目——单条损坏不影响密码库整体加载。
+  static List<TrashedVaultItem> _trashedItems(Object? value) {
+    if (value is! List) return const [];
+    final entries = <TrashedVaultItem>[];
+    for (final raw in value) {
+      if (raw is! Map) continue;
+      try {
+        entries.add(TrashedVaultItem.fromJson(raw.cast<String, dynamic>()));
+      } catch (_) {
+        // 忽略损坏的回收站条目。
+      }
+    }
+    return entries;
   }
 
   static WebDavCredentials? _webDavCredentials(Object? value) {

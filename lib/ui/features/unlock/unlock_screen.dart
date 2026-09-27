@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/vault_brand.dart';
+import '../../../data/services/app_preferences_service.dart';
 
 typedef UnlockVaultCallback = Future<void> Function(String masterPassword);
 
@@ -120,7 +121,26 @@ class _UnlockScreenState extends State<UnlockScreen> {
                           : const Icon(Icons.lock_open_outlined),
                       label: Text(widget.busy ? '正在解锁…' : '解锁'),
                     ),
-                    if (widget.deviceUnlockEnabled) ...[
+                    if (_masterPasswordRequired) ...[
+                      const SizedBox(height: 16),
+                      Text(
+                        '距上次输入主密码已 $_daysSinceMasterPassword 天，'
+                        '为确认身份请使用主密码解锁。',
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.error,
+                        ),
+                      ),
+                    ] else if (_masterPasswordReminderDue) ...[
+                      const SizedBox(height: 16),
+                      Text(
+                        '距上次输入主密码已 $_daysSinceMasterPassword 天，'
+                        '建议使用主密码解锁（满 5 天后必须输入主密码）。',
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                    if (widget.deviceUnlockEnabled && !_masterPasswordRequired) ...[
                       const SizedBox(height: 12),
                       OutlinedButton.icon(
                         key: const Key('device-unlock-vault'),
@@ -144,7 +164,21 @@ class _UnlockScreenState extends State<UnlockScreen> {
     await widget.onUnlock(_passwordController.text);
   }
 
+  /// 1.2.6：距上次输入主密码的天数（未记录时按 0 展示）。
+  int get _daysSinceMasterPassword =>
+      AppPreferences.instance.daysSinceMasterPassword ?? 0;
+
+  /// 1.2.6：满 [AppPreferences.masterPasswordDeadlineDays] 天必须用主密码解锁。
+  bool get _masterPasswordRequired =>
+      AppPreferences.instance.masterPasswordRequired;
+
+  /// 1.2.6：满 [AppPreferences.masterPasswordReminderDays] 天时提示一次。
+  bool get _masterPasswordReminderDue =>
+      AppPreferences.instance.masterPasswordReminderDue;
+
   void _requestAutomaticDeviceUnlock() {
+    // 1.2.6：主密码已过期时必须手动输入，不再自动触发设备验证解锁。
+    if (AppPreferences.instance.masterPasswordRequired) return;
     if (_autoUnlockRequested ||
         !widget.deviceUnlockEnabled ||
         !widget.automaticDeviceUnlock) {

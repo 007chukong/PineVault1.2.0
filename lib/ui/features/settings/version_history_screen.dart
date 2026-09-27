@@ -45,6 +45,12 @@ class _VersionEntry {
 /// 历史版本数据（由 tools/gen_version_history.py 依据 CHANGELOG.md 生成）。
 const List<_VersionEntry> _entries = <_VersionEntry>[
   const _VersionEntry(
+    version: '1.2.6',
+    date: '2026-09-27',
+    log: '新增「回收站」：删除密码不再直接消失，会先移入回收站，可随时「找回」；回收站内容随密码库一起加密保存，30 天后自动清理，也可以手动「彻底删除」。入口在设置页「数据 → 回收站」，删除确认框文案同步改为「移入回收站」；新增「存储路径」页：设置页「数据 → 存储路径」列出密码库文件（vault.pvlt / vault.prev.pvlt /vault.tmp）、本机备份目录、备份与同步状态文件、设备解锁凭据、应用设置，以及 WebDAV 云端（Apps/PineVault/vault.pvlt、Apps/PineVault/backups/<vaultId>）的实际位置，长按可复制',
+    repoUrl: 'https://github.com/007chukong/PineVault1.2.0/releases/tag/1.2.6',
+  ),
+  const _VersionEntry(
     version: '1.2.5',
     date: '2026-09-22',
     log: '密码删除新增二次确认：单条删除、批量删除与编辑页删除都会弹出「请确认是否删除？」（红色三角感叹号 + 小字提醒），避免误删后无法找回；使用须知更新：新增开源与免责条款——本工具为开源软件，代码全部由 DeepSeek（人工智能）全程编写，请自行审阅源码与安装包并排查风险；文末提供「前往审查代码」入口（仓库地址蓝色高亮、可直接点击）。声明版本号由 1.0 升到 1.1，老用户会重新确认一次',

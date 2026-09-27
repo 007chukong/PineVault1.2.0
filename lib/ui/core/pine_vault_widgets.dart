@@ -315,7 +315,7 @@ class PineVaultCoolapkBadge extends StatelessWidget {
 Future<bool?> showPineVaultDeleteConfirmDialog(
   BuildContext context, {
   String title = '请确认是否删除？',
-  String message = '此操作将彻底删除您的密码，建议导出备份文件后删除，以防密码遗失/忘记!',
+  String message = '删除的条目会移入回收站，可在「设置 → 回收站」中找回，30 天后自动清理。',
   String confirmLabel = '删除',
   String cancelLabel = '取消',
 }) {
